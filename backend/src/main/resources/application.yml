@@ -33,4 +33,5 @@ server:
 app:
   # Google Gemini API key configuration
   gemini-api-key: ${GEMINI_API_KEY:not-set}
+  youtube-api-key: ${YOUTUBE_API_KEY:${app.gemini-api-key:not-set}}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}

@@ -3,6 +3,7 @@ package com.explorer.backend.controller;
 import com.explorer.backend.dto.ExploreResponse;
 import com.explorer.backend.entity.ExplorationPath;
 import com.explorer.backend.service.ExploreService;
+import com.explorer.backend.service.YouTubeService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +16,11 @@ import java.util.Map;
 public class ExploreController {
 
     private final ExploreService exploreService;
+    private final YouTubeService youtubeService;
 
-    public ExploreController(ExploreService exploreService) {
+    public ExploreController(ExploreService exploreService, YouTubeService youtubeService) {
         this.exploreService = exploreService;
+        this.youtubeService = youtubeService;
     }
 
     @PostMapping("/search")
@@ -68,6 +71,14 @@ public class ExploreController {
 
         String responseText = exploreService.chatWithConcept(message, conceptContext);
         return ResponseEntity.ok(Map.of("response", responseText));
+    }
+
+    @GetMapping("/videos")
+    public ResponseEntity<List<Map<String, String>>> getEducationalVideos(@RequestParam String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(youtubeService.searchEducationalVideos(query));
     }
 }
 

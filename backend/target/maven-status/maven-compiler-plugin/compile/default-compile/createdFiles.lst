@@ -9,5 +9,6 @@ com\explorer\backend\entity\ExplorationPath.class
 com\explorer\backend\service\ExploreService.class
 com\explorer\backend\dto\ExploreResponse.class
 com\explorer\backend\entity\Concept.class
+com\explorer\backend\service\YouTubeService.class
 com\explorer\backend\repository\ConceptConnectionRepository.class
 com\explorer\backend\service\GeminiService.class

@@ -28,7 +28,9 @@ import {
   RefreshCw,
   GitCommit,
   MessageSquare,
-  Send
+  Send,
+  Play,
+  Video
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -58,6 +60,11 @@ export default function ExplorerPage() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+
+  // YouTube Educational Videos States
+  const [videos, setVideos] = useState<any[]>([]);
+  const [isVideosLoading, setIsVideosLoading] = useState(false);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const chatContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Register Custom Node Types for React Flow
@@ -289,6 +296,31 @@ export default function ExplorerPage() {
       setIsChatLoading(false);
     }
   };
+
+  // Fetch YouTube educational videos when selectedNode changes
+  useEffect(() => {
+    if (!selectedNode) {
+      setVideos([]);
+      return;
+    }
+
+    const fetchVideos = async () => {
+      setIsVideosLoading(true);
+      try {
+        const res = await axios.get(`${API_BASE}/api/v1/explore/videos`, {
+          params: { query: selectedNode.data.label }
+        });
+        setVideos(res.data || []);
+      } catch (err) {
+        console.error('Failed to load educational videos', err);
+        setVideos([]);
+      } finally {
+        setIsVideosLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, [selectedNode]);
 
   return (
     <div className="w-screen h-screen relative bg-zinc-950 text-white overflow-hidden futuristic-grid">
@@ -630,6 +662,61 @@ export default function ExplorerPage() {
               )}
             </div>
 
+            {/* Watch & Learn Videos (Directly inside the Chat panel!) */}
+            {selectedNode && (
+              <div className="px-4 py-2.5 border-t border-white/5 bg-zinc-900/40">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black text-teal-400 uppercase tracking-widest flex items-center gap-1">
+                    <Video className="w-3.5 h-3.5 text-teal-400" />
+                    Watch & Learn: {selectedNode.data.label}
+                  </span>
+                </div>
+
+                {isVideosLoading ? (
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+                    {[1, 2, 3].map((n) => (
+                      <div key={n} className="flex-shrink-0 w-24 h-14 bg-zinc-900/80 animate-pulse rounded-lg border border-white/5" />
+                    ))}
+                  </div>
+                ) : videos.length === 0 ? (
+                  <p className="text-[10px] text-zinc-500 italic py-1">No educational videos found.</p>
+                ) : (
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5 scroll-smooth">
+                    {videos.map((vid) => (
+                      <div
+                        key={vid.videoId}
+                        onClick={() => setActiveVideoId(vid.videoId)}
+                        className="flex-shrink-0 w-28 group/vid relative cursor-pointer overflow-hidden rounded-lg border border-white/10 hover:border-teal-500/50 bg-zinc-950 transition-all duration-200"
+                        title={vid.title}
+                      >
+                        {/* Thumbnail Image */}
+                        <div className="w-full h-14 relative overflow-hidden bg-zinc-900">
+                          {vid.thumbnailUrl && (
+                            <img
+                              src={vid.thumbnailUrl}
+                              alt={vid.title}
+                              className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
+                            />
+                          )}
+                          {/* Play overlay button */}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
+                            <Play className="w-4 h-4 text-teal-400 fill-teal-400" />
+                          </div>
+                        </div>
+                        {/* Title text */}
+                        <div className="p-1.5">
+                          <p className="text-[9px] text-white font-bold leading-tight line-clamp-1 truncate group-hover/vid:text-teal-400 transition-colors">
+                            {vid.title}
+                          </p>
+                          <p className="text-[8px] text-zinc-500 truncate mt-0.5">{vid.channelTitle}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Quick Suggestions presets */}
             <div className="px-4 py-2 border-t border-white/5 bg-zinc-900/20 flex gap-2 overflow-x-auto no-scrollbar scroll-smooth">
               {selectedNode ? (
@@ -695,6 +782,49 @@ export default function ExplorerPage() {
                 <Send className="w-3.5 h-3.5 text-white" />
               </button>
             </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FULLSCREEN YOUTUBE EMBED VIDEO PLAYER MODAL */}
+      <AnimatePresence>
+        {activeVideoId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={() => setActiveVideoId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-4xl bg-zinc-950 border border-teal-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-teal-500/10 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Close button */}
+              <button
+                onClick={() => setActiveVideoId(null)}
+                className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 border border-white/10 hover:border-red-500/40 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-900 cursor-pointer transition-all"
+                title="Close Player"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Responsive Iframe Aspect Ratio Player */}
+              <div className="w-full aspect-video bg-black">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${activeVideoId}?autoplay=1&rel=0`}
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
