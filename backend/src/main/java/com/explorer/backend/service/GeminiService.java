@@ -1,0 +1,90 @@
+package com.explorer.backend.service;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.*;
+
+@Service
+public class GeminiService {
+
+    @Value("${app.gemini-api-key:not-set}")
+    private String geminiApiKey;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    public String generateConceptConnections(String conceptName) {
+        if ("not-set".equals(geminiApiKey) || geminiApiKey.isEmpty()) {
+            // Check fallback environment variable directly
+            String envKey = System.getenv("GEMINI_API_KEY");
+            if (envKey != null && !envKey.isEmpty()) {
+                geminiApiKey = envKey;
+            } else {
+                throw new RuntimeException("Google Gemini API Key is not set! Please configure GEMINI_API_KEY environment variable.");
+            }
+        }
+
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+
+        // Structured prompt mapping the desired visual JSON schema
+        String prompt = "You are the Explorer AI, a visual knowledge graph generator. When a user requests a concept, you return a concise visual summary and exactly 5 to 7 logical, interdisciplinary related concepts that naturally branch out.\n" +
+                "Generate related concepts for: \"" + conceptName + "\".\n" +
+                "You MUST return a valid JSON object matching the following structure:\n" +
+                "{\n" +
+                "  \"name\": \"Concept Name\",\n" +
+                "  \"summary\": \"A highly intelligent, 3-sentence summary of the concept covering its core meaning, historical/philosophical context, and real-world impact.\",\n" +
+                "  \"connections\": [\n" +
+                "    {\n" +
+                "      \"name\": \"Related Concept 1\",\n" +
+                "      \"relationship\": \"A brief 1-sentence description of how this concept connects to the main topic.\"\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}\n" +
+                "Do NOT include any markdown code blocks, backticks, or text outside the JSON. Return only the raw JSON string.";
+
+        // Prepare request body
+        Map<String, Object> textPart = Map.of("text", prompt);
+        Map<String, Object> parts = Map.of("parts", List.of(textPart));
+        Map<String, Object> contents = Map.of("contents", List.of(parts));
+        
+        // Force JSON response MimeType
+        Map<String, Object> generationConfig = Map.of("responseMimeType", "application/json");
+        
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("contents", List.of(parts));
+        requestBody.put("generationConfig", generationConfig);
+
+        // Prepare headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                // Parse the Gemini nested response structure
+                List candidates = (List) response.getBody().get("candidates");
+                if (candidates != null && !candidates.isEmpty()) {
+                    Map candidate = (Map) candidates.get(0);
+                    Map content = (Map) candidate.get("content");
+                    if (content != null) {
+                        List partsList = (List) content.get("parts");
+                        if (partsList != null && !partsList.isEmpty()) {
+                            Map part = (Map) partsList.get(0);
+                            return (String) part.get("text");
+                        }
+                    }
+                }
+            }
+            throw new RuntimeException("Invalid response format received from Google Gemini API");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to call Google Gemini API: " + e.getMessage(), e);
+        }
+    }
+}
