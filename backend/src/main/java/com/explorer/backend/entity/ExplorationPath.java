@@ -23,11 +23,21 @@ public class ExplorationPath {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user;
+
     public ExplorationPath() {}
 
     public ExplorationPath(String title, String pathData) {
         this.title = title;
         this.pathData = pathData;
+    }
+
+    public ExplorationPath(String title, String pathData, User user) {
+        this.title = title;
+        this.pathData = pathData;
+        this.user = user;
     }
 
     public UUID getId() { return id; }
@@ -38,6 +48,9 @@ public class ExplorationPath {
 
     public String getPathData() { return pathData; }
     public void setPathData(String pathData) { this.pathData = pathData; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

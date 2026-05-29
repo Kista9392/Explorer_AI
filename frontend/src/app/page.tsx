@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   ReactFlow, 
   MiniMap, 
@@ -30,7 +30,13 @@ import {
   MessageSquare,
   Send,
   Play,
-  Video
+  Video,
+  LogIn,
+  LogOut,
+  User,
+  Shield,
+  Globe,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -39,6 +45,14 @@ import { CustomNode } from '@/components/CustomNode';
 import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7860';
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+// Extend the Window type to include google GSI
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
 
 export default function ExplorerPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
@@ -70,19 +84,110 @@ export default function ExplorerPage() {
   // Regulatory Safety Block States
   const [safetyBlock, setSafetyBlock] = useState<any | null>(null);
 
+  // Google OAuth Authentication States
+  const [authUser, setAuthUser] = useState<any | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
     custom: CustomNode
   }), []);
 
-  // Fetch saved path journeys on mount
+  // Build auth headers helper
+  const getAuthHeaders = useCallback(() => {
+    if (!authToken) return {};
+    return { Authorization: `Bearer ${authToken}` };
+  }, [authToken]);
+
+  // Google Sign-In callback handler
+  const handleGoogleCallback = useCallback(async (response: any) => {
+    const idToken = response.credential;
+    if (!idToken) return;
+
+    try {
+      const res = await axios.post(`${API_BASE}/api/v1/auth/google`, { idToken });
+      const userData = res.data;
+      setAuthUser(userData);
+      setAuthToken(idToken);
+      localStorage.setItem('explorer_token', idToken);
+      localStorage.setItem('explorer_user', JSON.stringify(userData));
+    } catch (err) {
+      console.error('Google auth failed', err);
+    }
+  }, []);
+
+  // Sign out handler
+  const handleSignOut = useCallback(() => {
+    setAuthUser(null);
+    setAuthToken(null);
+    setShowProfileMenu(false);
+    localStorage.removeItem('explorer_token');
+    localStorage.removeItem('explorer_user');
+    // Re-render Google button after sign out
+    setTimeout(() => renderGoogleButton(), 300);
+  }, []);
+
+  // Render the native Google Sign-In button
+  const renderGoogleButton = useCallback(() => {
+    if (!window.google || !googleBtnRef.current || !GOOGLE_CLIENT_ID) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCallback,
+        auto_select: false,
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        type: 'icon',
+        shape: 'circle',
+        theme: 'filled_black',
+        size: 'large',
+      });
+    } catch (e) {
+      console.error('Failed to render Google button', e);
+    }
+  }, [handleGoogleCallback]);
+
+  // Restore cached session & initialize Google button
+  useEffect(() => {
+    // Try to restore cached session
+    const cachedToken = localStorage.getItem('explorer_token');
+    const cachedUser = localStorage.getItem('explorer_user');
+    if (cachedToken && cachedUser) {
+      try {
+        setAuthUser(JSON.parse(cachedUser));
+        setAuthToken(cachedToken);
+      } catch { /* ignore corrupt cache */ }
+    }
+
+    // Wait for Google script to load, then render button
+    const interval = setInterval(() => {
+      if (window.google) {
+        clearInterval(interval);
+        renderGoogleButton();
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [renderGoogleButton]);
+
+  // Re-render the Google button when user logs out
+  useEffect(() => {
+    if (!authUser) {
+      renderGoogleButton();
+    }
+  }, [authUser, renderGoogleButton]);
+
+  // Fetch saved path journeys on mount and when auth changes
   useEffect(() => {
     fetchSavedPaths();
-  }, []);
+  }, [authToken]);
 
   const fetchSavedPaths = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/v1/explore/paths`);
+      const res = await axios.get(`${API_BASE}/api/v1/explore/paths`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
       setSavedPaths(res.data || []);
     } catch (err) {
       console.error('Failed to load explorer paths', err);
@@ -242,7 +347,9 @@ export default function ExplorerPage() {
         title: pathTitle.trim(),
         pathData: JSON.stringify({ nodes, edges })
       };
-      await axios.post(`${API_BASE}/api/v1/explore/paths`, pathPayload);
+      await axios.post(`${API_BASE}/api/v1/explore/paths`, pathPayload, {
+        headers: getAuthHeaders()
+      });
       setPathTitle('');
       await fetchSavedPaths();
     } catch (err) {
@@ -365,6 +472,87 @@ export default function ExplorerPage() {
         <History className="w-5 h-5 text-zinc-400 hover:text-teal-400" />
       </button>
 
+      {/* TOP-RIGHT AUTH WIDGET: Google Sign-In / Avatar Profile */}
+      <div className="absolute top-6 right-6 z-20">
+        {authUser ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="relative w-11 h-11 rounded-full cursor-pointer group transition-all duration-300"
+              title={authUser.name}
+            >
+              {/* Glowing Indigo Aura Ring */}
+              <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-60 blur-sm group-hover:opacity-90 animate-pulse transition-opacity" />
+              <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-70" />
+              {authUser.pictureUrl ? (
+                <img
+                  src={authUser.pictureUrl}
+                  alt={authUser.name}
+                  className="relative w-full h-full rounded-full object-cover border-2 border-zinc-950"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="relative w-full h-full rounded-full bg-zinc-900 border-2 border-zinc-950 flex items-center justify-center text-sm font-black text-teal-400">
+                  {authUser.name?.[0]?.toUpperCase() || '?'}
+                </span>
+              )}
+              {/* Online indicator */}
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950" />
+            </button>
+
+            {/* Profile Dropdown Menu */}
+            <AnimatePresence>
+              {showProfileMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  className="absolute right-0 mt-3 w-64 bg-zinc-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-4 flex flex-col"
+                >
+                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
+                    {authUser.pictureUrl ? (
+                      <img
+                        src={authUser.pictureUrl}
+                        alt={authUser.name}
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/50"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="w-10 h-10 rounded-full bg-zinc-900 ring-2 ring-indigo-500/50 flex items-center justify-center text-sm font-black text-teal-400">
+                        {authUser.name?.[0]?.toUpperCase() || '?'}
+                      </span>
+                    )}
+                    <div className="overflow-hidden">
+                      <h4 className="text-sm font-bold text-white truncate">{authUser.name}</h4>
+                      <p className="text-[10px] text-zinc-400 truncate">{authUser.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-400 mb-3">
+                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Verified Google Account</span>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 bg-zinc-900/60 hover:bg-red-500/10 border border-white/5 hover:border-red-500/30 rounded-xl text-xs text-zinc-400 hover:text-red-400 cursor-pointer transition-all"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Sign Out
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          /* Google Sign-In Button Container */
+          <div
+            ref={googleBtnRef}
+            className="rounded-full overflow-hidden shadow-xl shadow-black/40 border border-white/10 hover:border-teal-500/30 transition-all"
+            title="Sign in with Google"
+          />
+        )}
+      </div>
+
       {/* MAIN REACT FLOW GRAPH CANVAS */}
       <div className="w-full h-full relative z-10">
         {nodes.length === 0 ? (
@@ -477,10 +665,21 @@ export default function ExplorerPage() {
                       className="p-3.5 rounded-xl border border-white/5 hover:border-teal-500/20 bg-zinc-900/30 hover:bg-zinc-900/60 cursor-pointer flex items-center justify-between group transition-all"
                     >
                       <div className="overflow-hidden mr-2">
-                        <h4 className="font-bold text-xs text-white group-hover:text-teal-400 transition-colors truncate">{path.title}</h4>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <h4 className="font-bold text-xs text-white group-hover:text-teal-400 transition-colors truncate">{path.title}</h4>
+                          {path.user ? (
+                            <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[7px] font-black text-indigo-400 uppercase tracking-wider">
+                              <Lock className="w-2 h-2" /> Personal
+                            </span>
+                          ) : (
+                            <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-zinc-800 border border-white/5 rounded-full text-[7px] font-black text-zinc-500 uppercase tracking-wider">
+                              <Globe className="w-2 h-2" /> Public
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[9px] text-zinc-500 mt-0.5">Created: {new Date(path.createdAt).toLocaleDateString()}</p>
                       </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-teal-400 transition-colors" />
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-teal-400 transition-colors flex-shrink-0" />
                     </div>
                   ))
                 )}

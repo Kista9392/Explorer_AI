@@ -2,6 +2,8 @@ package com.explorer.backend.controller;
 
 import com.explorer.backend.dto.ExploreResponse;
 import com.explorer.backend.entity.ExplorationPath;
+import com.explorer.backend.entity.User;
+import com.explorer.backend.service.AuthService;
 import com.explorer.backend.service.ExploreService;
 import com.explorer.backend.service.YouTubeService;
 import com.explorer.backend.service.SafetyFilterService;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/explore")
@@ -19,13 +22,29 @@ public class ExploreController {
     private final ExploreService exploreService;
     private final YouTubeService youtubeService;
     private final SafetyFilterService safetyFilterService;
+    private final AuthService authService;
 
     public ExploreController(ExploreService exploreService, 
                              YouTubeService youtubeService, 
-                             SafetyFilterService safetyFilterService) {
+                             SafetyFilterService safetyFilterService,
+                             AuthService authService) {
         this.exploreService = exploreService;
         this.youtubeService = youtubeService;
         this.safetyFilterService = safetyFilterService;
+        this.authService = authService;
+    }
+
+    /**
+     * Resolves the authenticated user from the Authorization Bearer token header.
+     * Returns null if no token is provided or the token is invalid.
+     */
+    private User resolveUser(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = authHeader.substring(7);
+        Optional<User> userOpt = authService.verifyGoogleToken(token);
+        return userOpt.orElse(null);
     }
 
     @PostMapping("/search")
@@ -70,19 +89,25 @@ public class ExploreController {
     }
 
     @GetMapping("/paths")
-    public ResponseEntity<List<ExplorationPath>> getSavedPaths() {
-        return ResponseEntity.ok(exploreService.getAllPaths());
+    public ResponseEntity<List<ExplorationPath>> getSavedPaths(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User user = resolveUser(authHeader);
+        return ResponseEntity.ok(exploreService.getAllPaths(user));
     }
 
     @PostMapping("/paths")
-    public ResponseEntity<ExplorationPath> savePath(@RequestBody Map<String, String> request) {
+    public ResponseEntity<ExplorationPath> savePath(
+            @RequestBody Map<String, String> request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         String title = request.get("title");
         String pathData = request.get("pathData");
 
         if (title == null || title.trim().isEmpty() || pathData == null || pathData.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(exploreService.savePath(title, pathData));
+
+        User user = resolveUser(authHeader);
+        return ResponseEntity.ok(exploreService.savePath(title, pathData, user));
     }
 
     @PostMapping("/chat")
@@ -128,4 +153,3 @@ public class ExploreController {
         return ResponseEntity.ok(youtubeService.searchEducationalVideos(query));
     }
 }
-

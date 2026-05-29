@@ -1,4 +1,5 @@
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\BackendApplication.java
+C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\controller\AuthController.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\controller\ExploreController.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\dto\EdgeDTO.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\dto\ExploreResponse.java
@@ -6,9 +7,12 @@ C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\Concept.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\ConceptConnection.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\ExplorationPath.java
+C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\User.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ConceptConnectionRepository.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ConceptRepository.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ExplorationPathRepository.java
+C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\UserRepository.java
+C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\service\AuthService.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\service\ExploreService.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\service\GeminiService.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\service\SafetyFilterService.java

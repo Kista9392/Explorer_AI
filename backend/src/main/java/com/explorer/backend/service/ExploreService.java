@@ -149,12 +149,20 @@ public class ExploreService {
     }
 
     // Path History Save / Load
-    public List<ExplorationPath> getAllPaths() {
-        return pathRepository.findAll();
+    public List<ExplorationPath> getAllPaths(User user) {
+        if (user != null) {
+            // Return the user's personal paths + all public/anonymous paths
+            List<ExplorationPath> personalPaths = pathRepository.findByUserOrderByCreatedAtDesc(user);
+            List<ExplorationPath> publicPaths = pathRepository.findByUserIsNullOrderByCreatedAtDesc();
+            List<ExplorationPath> combined = new java.util.ArrayList<>(personalPaths);
+            combined.addAll(publicPaths);
+            return combined;
+        }
+        return pathRepository.findByUserIsNullOrderByCreatedAtDesc();
     }
 
-    public ExplorationPath savePath(String title, String pathData) {
-        ExplorationPath path = new ExplorationPath(title.trim(), pathData.trim());
+    public ExplorationPath savePath(String title, String pathData, User user) {
+        ExplorationPath path = new ExplorationPath(title.trim(), pathData.trim(), user);
         return pathRepository.save(path);
     }
 
