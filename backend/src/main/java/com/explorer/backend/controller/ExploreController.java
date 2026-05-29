@@ -56,4 +56,18 @@ public class ExploreController {
         }
         return ResponseEntity.ok(exploreService.savePath(title, pathData));
     }
+
+    @PostMapping("/chat")
+    public ResponseEntity<Map<String, String>> chatWithAssistant(@RequestBody Map<String, String> request) {
+        String message = request.get("message");
+        String conceptContext = request.get("conceptContext");
+
+        if (message == null || message.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String responseText = exploreService.chatWithConcept(message, conceptContext);
+        return ResponseEntity.ok(Map.of("response", responseText));
+    }
 }
+

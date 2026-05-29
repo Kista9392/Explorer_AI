@@ -87,4 +87,71 @@ public class GeminiService {
             throw new RuntimeException("Failed to call Google Gemini API: " + e.getMessage(), e);
         }
     }
+
+    public String chatWithConcept(String message, String conceptContext) {
+        if ("not-set".equals(geminiApiKey) || geminiApiKey.isEmpty()) {
+            String envKey = System.getenv("GEMINI_API_KEY");
+            if (envKey != null && !envKey.isEmpty()) {
+                geminiApiKey = envKey;
+            } else {
+                throw new RuntimeException("Google Gemini API Key is not set! Please configure GEMINI_API_KEY environment variable.");
+            }
+        }
+
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+
+        String systemInstruction = "You are the Explorer AI Chat Assistant, a highly intelligent, visual knowledge explorer and friendly learning tutor. "
+                + "You help curiosity-driven users explore connections, theories, sciences, and ideas.\n";
+        
+        if (conceptContext != null && !conceptContext.trim().isEmpty()) {
+            systemInstruction += "The user is currently focused on the concept: \"" + conceptContext + "\" on their interactive knowledge graph. "
+                    + "Tailor your explanations, answers, and examples directly to this concept when answering their queries.\n";
+        } else {
+            systemInstruction += "No specific concept is selected right now. Guide the user broadly, suggest interesting topics to search, or answer general conceptual questions.\n";
+        }
+
+        systemInstruction += "Rules for your response:\n"
+                + "1. Keep your explanation extremely engaging, clear, and structured.\n"
+                + "2. Keep the answer to a concise 2 to 3 paragraphs so it fits cleanly in a chat widget.\n"
+                + "3. Feel free to use markdown bullets or bold words to highlight interesting aspects.\n"
+                + "4. Do NOT output raw HTML or JSON. Return only the formatted markdown conversational response.";
+
+        String fullPrompt = systemInstruction + "\n\nUser Message: \"" + message + "\"\nAssistant:";
+
+        // Prepare request body
+        Map<String, Object> textPart = Map.of("text", fullPrompt);
+        Map<String, Object> parts = Map.of("parts", List.of(textPart));
+        Map<String, Object> contents = Map.of("contents", List.of(parts));
+        
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("contents", List.of(parts));
+
+        // Prepare headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                List candidates = (List) response.getBody().get("candidates");
+                if (candidates != null && !candidates.isEmpty()) {
+                    Map candidate = (Map) candidates.get(0);
+                    Map content = (Map) candidate.get("content");
+                    if (content != null) {
+                        List partsList = (List) content.get("parts");
+                        if (partsList != null && !partsList.isEmpty()) {
+                            Map part = (Map) partsList.get(0);
+                            return (String) part.get("text");
+                        }
+                    }
+                }
+            }
+            throw new RuntimeException("Invalid response format from Gemini Chat API");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to chat with Gemini: " + e.getMessage(), e);
+        }
+    }
 }
+

@@ -157,4 +157,9 @@ public class ExploreService {
         ExplorationPath path = new ExplorationPath(title.trim(), pathData.trim());
         return pathRepository.save(path);
     }
+
+    public String chatWithConcept(String message, String conceptContext) {
+        return geminiService.chatWithConcept(message, conceptContext);
+    }
 }
+

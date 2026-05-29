@@ -26,12 +26,15 @@ import {
   ChevronLeft, 
   Sparkles,
   RefreshCw,
-  GitCommit
+  GitCommit,
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
 import { CustomNode } from '@/components/CustomNode';
+import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7860';
 
@@ -47,6 +50,15 @@ export default function ExplorerPage() {
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [pathTitle, setPathTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Conversational AI Chat Assistant States
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([
+    { sender: 'assistant', text: 'Greetings, fellow explorer! I am your Explorer AI Assistant. Select any node on the knowledge graph to give me context, or ask me any conceptual query directly!' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
@@ -244,6 +256,37 @@ export default function ExplorerPage() {
     } catch (err) {
       console.error('Failed to parse path data', err);
       alert('Corrupted path data.');
+    }
+  };
+
+  // Scroll to bottom of chat whenever messages list updates
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages, showChat]);
+
+  const handleSendChatMessage = async (textToSend?: string) => {
+    const rawText = textToSend || chatInput;
+    if (!rawText.trim() || isChatLoading) return;
+
+    const userMessage = { sender: 'user', text: rawText.trim() };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setIsChatLoading(true);
+
+    try {
+      const res = await axios.post(`${API_BASE}/api/v1/explore/chat`, {
+        message: rawText.trim(),
+        conceptContext: selectedNode ? selectedNode.data.label : ''
+      });
+      const assistantText = res.data?.response || 'I am sorry, my analytical buffers encountered an anomaly. Please try again.';
+      setChatMessages(prev => [...prev, { sender: 'assistant', text: assistantText }]);
+    } catch (err) {
+      console.error('Failed to chat with AI assistant', err);
+      setChatMessages(prev => [...prev, { sender: 'assistant', text: 'Communication array offline. Please ensure the backend server is running and the Gemini API key is valid.' }]);
+    } finally {
+      setIsChatLoading(false);
     }
   };
 
@@ -494,6 +537,165 @@ export default function ExplorerPage() {
               )}
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING AI ASSISTANT TRIGGER BUTTON */}
+      <button
+        onClick={() => setShowChat(!showChat)}
+        className="absolute bottom-28 right-6 z-20 p-4 bg-gradient-to-r from-teal-500 to-indigo-600 border border-white/10 hover:border-teal-400 rounded-full shadow-2xl hover:scale-105 active:scale-95 cursor-pointer group transition-all duration-200"
+        title="AI Assistant Chat"
+      >
+        <MessageSquare className="w-6 h-6 text-white group-hover:animate-pulse" />
+        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-teal-400 border border-zinc-950 animate-ping" />
+      </button>
+
+      {/* FLOATING AI ASSISTANT CHAT CONTAINER */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, y: 100 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.8, opacity: 0, y: 100 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+            className="absolute bottom-6 right-6 w-96 h-[520px] bg-zinc-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl z-40 flex flex-col overflow-hidden"
+          >
+            {/* Header */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-900/40">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
+                </span>
+                <div>
+                  <h3 className="font-black text-xs text-white uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                    Explorer AI Assistant
+                  </h3>
+                  {selectedNode ? (
+                    <p className="text-[10px] text-zinc-400 truncate flex items-center gap-1 mt-0.5 max-w-[200px]">
+                      <Cpu className="w-3 h-3 text-teal-400" />
+                      Context: {selectedNode.data.label}
+                    </p>
+                  ) : (
+                    <p className="text-[9px] text-zinc-500 italic mt-0.5">Broad conceptual focus</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowChat(false)}
+                className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Messages Stream */}
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3.5 flex flex-col"
+            >
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "flex flex-col max-w-[85%] text-xs",
+                    msg.sender === 'user' 
+                      ? "self-end items-end" 
+                      : "self-start items-start"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "px-3.5 py-2.5 rounded-2xl leading-relaxed whitespace-pre-line border",
+                      msg.sender === 'user'
+                        ? "bg-teal-500/10 border-teal-500/20 text-white rounded-tr-none text-left"
+                        : "bg-zinc-900/50 border-white/5 text-zinc-300 rounded-tl-none text-left"
+                    )}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+
+              {/* Typing Animation */}
+              {isChatLoading && (
+                <div className="flex items-center gap-2 self-start bg-zinc-900/40 border border-white/5 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs text-zinc-400">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400"></span>
+                  </span>
+                  AI is formulating...
+                </div>
+              )}
+            </div>
+
+            {/* Quick Suggestions presets */}
+            <div className="px-4 py-2 border-t border-white/5 bg-zinc-900/20 flex gap-2 overflow-x-auto no-scrollbar scroll-smooth">
+              {selectedNode ? (
+                <>
+                  <button
+                    onClick={() => handleSendChatMessage("Explain this concept like I'm 5 years old.")}
+                    className="flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-white/5 hover:border-teal-500/30 text-[10px] text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                  >
+                    👶 Explain like I'm 5
+                  </button>
+                  <button
+                    onClick={() => handleSendChatMessage("What are some historical contradictions or paradoxes associated with this?")}
+                    className="flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-white/5 hover:border-teal-500/30 text-[10px] text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                  >
+                    🏛️ Core Paradoxes
+                  </button>
+                  <button
+                    onClick={() => handleSendChatMessage("Give me a futuristic outlook and upcoming predictions for this field.")}
+                    className="flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-white/5 hover:border-teal-500/30 text-[10px] text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                  >
+                    🔮 Future Predictions
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleSendChatMessage("Suggest 3 highly abstract, interesting conceptual topics for me to search!")}
+                    className="flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-white/5 hover:border-teal-500/30 text-[10px] text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                  >
+                    🛸 Suggest search ideas
+                  </button>
+                  <button
+                    onClick={() => handleSendChatMessage("What are the capabilities of the Explorer AI visual knowledge graph?")}
+                    className="flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-white/5 hover:border-teal-500/30 text-[10px] text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                  >
+                    🛠️ How does this app work?
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendChatMessage();
+              }}
+              className="p-3 bg-zinc-900/60 border-t border-white/10 flex items-center gap-2"
+            >
+              <input
+                type="text"
+                placeholder={selectedNode ? `Ask about ${selectedNode.data.label}...` : "Ask a general question..."}
+                className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-teal-500 focus:ring-0"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={isChatLoading}
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim() || isChatLoading}
+                className="p-2 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 disabled:opacity-40 disabled:hover:from-teal-500 text-white rounded-xl cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5 text-white" />
+              </button>
+            </form>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
