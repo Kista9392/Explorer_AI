@@ -67,6 +67,9 @@ export default function ExplorerPage() {
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const chatContainerRef = React.useRef<HTMLDivElement>(null);
 
+  // Regulatory Safety Block States
+  const [safetyBlock, setSafetyBlock] = useState<any | null>(null);
+
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
     custom: CustomNode
@@ -125,9 +128,13 @@ export default function ExplorerPage() {
 
       setNodes(mappedNodes);
       setEdges(mappedEdges);
-    } catch (err) {
-      console.error('Search exploration failed', err);
-      alert('Failed to explore this topic. Please ensure the backend server is running and the Gemini API Key is valid.');
+    } catch (err: any) {
+      if (err.response?.data?.error === 'SafetyViolation') {
+        setSafetyBlock(err.response.data);
+      } else {
+        console.error('Search exploration failed', err);
+        alert('Failed to explore this topic. Please ensure the backend server is running and the Gemini API Key is valid.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -206,8 +213,12 @@ export default function ExplorerPage() {
         });
         return merged;
       });
-    } catch (err) {
-      console.error('Failed to expand concept node', err);
+    } catch (err: any) {
+      if (err.response?.data?.error === 'SafetyViolation') {
+        setSafetyBlock(err.response.data);
+      } else {
+        console.error('Failed to expand concept node', err);
+      }
       // Reset expansion loading indicator on failure
       setNodes((prevNodes) => prevNodes.map(n => n.id === nodeId ? {
         ...n,
@@ -302,9 +313,13 @@ export default function ExplorerPage() {
       const fetchedVideos = videosRes.data || [];
 
       setChatMessages(prev => [...prev, { sender: 'assistant', text: assistantText, videos: fetchedVideos }]);
-    } catch (err) {
-      console.error('Failed to chat with AI assistant', err);
-      setChatMessages(prev => [...prev, { sender: 'assistant', text: 'Communication array offline. Please ensure the backend server is running and the Gemini API key is valid.' }]);
+    } catch (err: any) {
+      if (err.response?.data?.error === 'SafetyViolation') {
+        setSafetyBlock(err.response.data);
+      } else {
+        console.error('Failed to chat with AI assistant', err);
+        setChatMessages(prev => [...prev, { sender: 'assistant', text: 'Communication array offline. Please ensure the backend server is running and the Gemini API key is valid.' }]);
+      }
     } finally {
       setIsChatLoading(false);
     }
@@ -800,6 +815,66 @@ export default function ExplorerPage() {
                   allowFullScreen
                 ></iframe>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ENTERPRISE REGULATORY SAFETY VIOLATION WARNING OVERLAY */}
+      <AnimatePresence>
+        {safetyBlock && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-lg bg-zinc-950/80 border border-red-500/40 rounded-3xl p-8 text-center shadow-2xl shadow-red-500/10 flex flex-col items-center"
+            >
+              {/* Decorative Warning Neon Beacon */}
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-full mb-6 animate-pulse">
+                <span className="relative flex h-8 w-8 items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                  <span className="relative text-red-500 font-black text-xl font-mono">!</span>
+                </span>
+              </div>
+
+              {/* Title Header */}
+              <h2 className="text-xl font-black text-red-400 uppercase tracking-wider mb-2">
+                Concept Restriction Blocked
+              </h2>
+              <span className="text-[10px] font-black bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-1 rounded-full uppercase tracking-widest mb-6">
+                Policy: {safetyBlock.category}
+              </span>
+
+              {/* Details text */}
+              <p className="text-xs text-zinc-400 leading-relaxed max-w-sm mb-8 text-zinc-300">
+                {safetyBlock.message}
+              </p>
+
+              {/* Specialized emergency card if category is Self-Harm */}
+              {safetyBlock.category === 'Self-Harm & Suicide' && (
+                <div className="w-full p-4 border border-teal-500/20 bg-teal-500/5 rounded-2xl mb-8 text-left relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-teal-500" />
+                  <h4 className="text-xs font-bold text-teal-400 mb-1">Compassionate Support Available</h4>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    You do not have to go through this alone. The Suicide & Crisis Lifeline provides free, confidential, 24/7 support. Call or text <strong className="text-teal-400 font-mono">988</strong> to connect immediately.
+                  </p>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <button
+                onClick={() => setSafetyBlock(null)}
+                className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-rose-700 hover:from-red-600 hover:to-rose-800 text-white rounded-full font-bold text-xs shadow-md shadow-red-500/10 cursor-pointer active:scale-95 transition-all"
+              >
+                Back to Safety
+              </button>
             </motion.div>
           </motion.div>
         )}

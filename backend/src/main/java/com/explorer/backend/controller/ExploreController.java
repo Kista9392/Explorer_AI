@@ -4,6 +4,7 @@ import com.explorer.backend.dto.ExploreResponse;
 import com.explorer.backend.entity.ExplorationPath;
 import com.explorer.backend.service.ExploreService;
 import com.explorer.backend.service.YouTubeService;
+import com.explorer.backend.service.SafetyFilterService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,23 +18,37 @@ public class ExploreController {
 
     private final ExploreService exploreService;
     private final YouTubeService youtubeService;
+    private final SafetyFilterService safetyFilterService;
 
-    public ExploreController(ExploreService exploreService, YouTubeService youtubeService) {
+    public ExploreController(ExploreService exploreService, 
+                             YouTubeService youtubeService, 
+                             SafetyFilterService safetyFilterService) {
         this.exploreService = exploreService;
         this.youtubeService = youtubeService;
+        this.safetyFilterService = safetyFilterService;
     }
 
     @PostMapping("/search")
-    public ResponseEntity<ExploreResponse> searchTopic(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> searchTopic(@RequestBody Map<String, String> request) {
         String query = request.get("query");
         if (query == null || query.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
+
+        SafetyFilterService.SafetyResult safety = safetyFilterService.checkSafety(query);
+        if (safety.isBlocked()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "SafetyViolation",
+                "category", safety.getCategory(),
+                "message", safety.getExplanation()
+            ));
+        }
+
         return ResponseEntity.ok(exploreService.searchConcept(query));
     }
 
     @PostMapping("/expand")
-    public ResponseEntity<ExploreResponse> expandTopic(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> expandTopic(@RequestBody Map<String, Object> request) {
         String concept = (String) request.get("concept");
         Number x = (Number) request.getOrDefault("x", 0);
         Number y = (Number) request.getOrDefault("y", 0);
@@ -41,6 +56,16 @@ public class ExploreController {
         if (concept == null || concept.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
+
+        SafetyFilterService.SafetyResult safety = safetyFilterService.checkSafety(concept);
+        if (safety.isBlocked()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "SafetyViolation",
+                "category", safety.getCategory(),
+                "message", safety.getExplanation()
+            ));
+        }
+
         return ResponseEntity.ok(exploreService.expandConcept(concept, x.doubleValue(), y.doubleValue()));
     }
 
@@ -61,12 +86,34 @@ public class ExploreController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<Map<String, String>> chatWithAssistant(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> chatWithAssistant(@RequestBody Map<String, String> request) {
         String message = request.get("message");
         String conceptContext = request.get("conceptContext");
 
         if (message == null || message.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
+        }
+
+        // Pre-screen the chat message for safety
+        SafetyFilterService.SafetyResult messageSafety = safetyFilterService.checkSafety(message);
+        if (messageSafety.isBlocked()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "SafetyViolation",
+                "category", messageSafety.getCategory(),
+                "message", messageSafety.getExplanation()
+            ));
+        }
+
+        // If context is present, also screen the context
+        if (conceptContext != null && !conceptContext.trim().isEmpty()) {
+            SafetyFilterService.SafetyResult contextSafety = safetyFilterService.checkSafety(conceptContext);
+            if (contextSafety.isBlocked()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "SafetyViolation",
+                    "category", contextSafety.getCategory(),
+                    "message", contextSafety.getExplanation()
+                ));
+            }
         }
 
         String responseText = exploreService.chatWithConcept(message, conceptContext);
