@@ -111,9 +111,9 @@ public class GeminiService {
         }
 
         systemInstruction += "Rules for your response:\n"
-                + "1. Keep your explanation extremely engaging, clear, and structured.\n"
-                + "2. Keep the answer to a concise 2 to 3 paragraphs so it fits cleanly in a chat widget.\n"
-                + "3. Feel free to use markdown bullets or bold words to highlight interesting aspects.\n"
+                + "1. Provide a comprehensive, highly accurate, and deeply detailed explanation of the concept that directly answers the user's query. Do not be minimal—explain the core mechanisms, theoretical frameworks, and real-world applications thoroughly.\n"
+                + "2. Keep the formatting clean and engaging. Feel free to use markdown bullets or bold words to highlight key terms.\n"
+                + "3. At the very end of your response, you MUST always pose a deeply engaging, thought-provoking Socratic question relevant to the chat topic that encourages the user to dive deeper, followed by an invitation to watch top educational YouTube videos or documentaries to explore this question in action.\n"
                 + "4. Do NOT output raw HTML or JSON. Return only the formatted markdown conversational response.";
 
         String fullPrompt = systemInstruction + "\n\nUser Message: \"" + message + "\"\nAssistant:";

@@ -282,13 +282,26 @@ export default function ExplorerPage() {
     setChatInput('');
     setIsChatLoading(true);
 
+    const queryTopic = selectedNode ? selectedNode.data.label : rawText.trim();
+
     try {
-      const res = await axios.post(`${API_BASE}/api/v1/explore/chat`, {
+      // 1. Call Gemini Chat API
+      const chatPromise = axios.post(`${API_BASE}/api/v1/explore/chat`, {
         message: rawText.trim(),
         conceptContext: selectedNode ? selectedNode.data.label : ''
       });
-      const assistantText = res.data?.response || 'I am sorry, my analytical buffers encountered an anomaly. Please try again.';
-      setChatMessages(prev => [...prev, { sender: 'assistant', text: assistantText }]);
+
+      // 2. Call YouTube search API in parallel
+      const videosPromise = axios.get(`${API_BASE}/api/v1/explore/videos`, {
+        params: { query: queryTopic }
+      });
+
+      const [chatRes, videosRes] = await Promise.all([chatPromise, videosPromise]);
+
+      const assistantText = chatRes.data?.response || 'I am sorry, my analytical buffers encountered an anomaly. Please try again.';
+      const fetchedVideos = videosRes.data || [];
+
+      setChatMessages(prev => [...prev, { sender: 'assistant', text: assistantText, videos: fetchedVideos }]);
     } catch (err) {
       console.error('Failed to chat with AI assistant', err);
       setChatMessages(prev => [...prev, { sender: 'assistant', text: 'Communication array offline. Please ensure the backend server is running and the Gemini API key is valid.' }]);
@@ -296,31 +309,6 @@ export default function ExplorerPage() {
       setIsChatLoading(false);
     }
   };
-
-  // Fetch YouTube educational videos when selectedNode changes
-  useEffect(() => {
-    if (!selectedNode) {
-      setVideos([]);
-      return;
-    }
-
-    const fetchVideos = async () => {
-      setIsVideosLoading(true);
-      try {
-        const res = await axios.get(`${API_BASE}/api/v1/explore/videos`, {
-          params: { query: selectedNode.data.label }
-        });
-        setVideos(res.data || []);
-      } catch (err) {
-        console.error('Failed to load educational videos', err);
-        setVideos([]);
-      } finally {
-        setIsVideosLoading(false);
-      }
-    };
-
-    fetchVideos();
-  }, [selectedNode]);
 
   return (
     <div className="w-screen h-screen relative bg-zinc-950 text-white overflow-hidden futuristic-grid">
@@ -631,15 +619,16 @@ export default function ExplorerPage() {
                 <div
                   key={idx}
                   className={cn(
-                    "flex flex-col max-w-[85%] text-xs",
+                    "flex flex-col max-w-[85%] text-xs space-y-1.5",
                     msg.sender === 'user' 
-                      ? "self-end items-end" 
-                      : "self-start items-start"
+                      ? "self-end items-end animate-fade-in-right" 
+                      : "self-start items-start animate-fade-in-left"
                   )}
                 >
+                  {/* Chat Message Text Bubble */}
                   <div
                     className={cn(
-                      "px-3.5 py-2.5 rounded-2xl leading-relaxed whitespace-pre-line border",
+                      "px-3.5 py-2.5 rounded-2xl leading-relaxed whitespace-pre-line border shadow-lg",
                       msg.sender === 'user'
                         ? "bg-teal-500/10 border-teal-500/20 text-white rounded-tr-none text-left"
                         : "bg-zinc-900/50 border-white/5 text-zinc-300 rounded-tl-none text-left"
@@ -647,6 +636,48 @@ export default function ExplorerPage() {
                   >
                     {msg.text}
                   </div>
+
+                  {/* Attached Multimedia 'Watch & Learn' video cards */}
+                  {msg.sender === 'assistant' && msg.videos && msg.videos.length > 0 && (
+                    <div className="w-full mt-1 p-2 rounded-2xl bg-zinc-900/30 border border-white/5 flex flex-col space-y-1.5 shadow-inner">
+                      <div className="flex items-center gap-1 text-[8px] font-black text-teal-400 uppercase tracking-widest px-1">
+                        <Video className="w-3 h-3 text-teal-400" />
+                        Explore Further (Videos)
+                      </div>
+                      
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5 scroll-smooth max-w-[270px]">
+                        {msg.videos.map((vid: any) => (
+                          <div
+                            key={vid.videoId}
+                            onClick={() => setActiveVideoId(vid.videoId)}
+                            className="flex-shrink-0 w-24 group/vid relative cursor-pointer overflow-hidden rounded-lg border border-white/5 hover:border-teal-500/40 bg-zinc-950 transition-all duration-200"
+                            title={vid.title}
+                          >
+                            {/* Thumbnail Overlay */}
+                            <div className="w-full h-12 relative overflow-hidden bg-zinc-900">
+                              {vid.thumbnailUrl && (
+                                <img
+                                  src={vid.thumbnailUrl}
+                                  alt={vid.title}
+                                  className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
+                                <Play className="w-3.5 h-3.5 text-teal-400 fill-teal-400" />
+                              </div>
+                            </div>
+                            {/* Title text */}
+                            <div className="p-1">
+                              <p className="text-[7.5px] text-white font-bold leading-tight line-clamp-1 truncate group-hover/vid:text-teal-400 transition-colors">
+                                {vid.title}
+                              </p>
+                              <p className="text-[7px] text-zinc-500 truncate mt-0.5">{vid.channelTitle}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -661,61 +692,6 @@ export default function ExplorerPage() {
                 </div>
               )}
             </div>
-
-            {/* Watch & Learn Videos (Directly inside the Chat panel!) */}
-            {selectedNode && (
-              <div className="px-4 py-2.5 border-t border-white/5 bg-zinc-900/40">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black text-teal-400 uppercase tracking-widest flex items-center gap-1">
-                    <Video className="w-3.5 h-3.5 text-teal-400" />
-                    Watch & Learn: {selectedNode.data.label}
-                  </span>
-                </div>
-
-                {isVideosLoading ? (
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
-                    {[1, 2, 3].map((n) => (
-                      <div key={n} className="flex-shrink-0 w-24 h-14 bg-zinc-900/80 animate-pulse rounded-lg border border-white/5" />
-                    ))}
-                  </div>
-                ) : videos.length === 0 ? (
-                  <p className="text-[10px] text-zinc-500 italic py-1">No educational videos found.</p>
-                ) : (
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5 scroll-smooth">
-                    {videos.map((vid) => (
-                      <div
-                        key={vid.videoId}
-                        onClick={() => setActiveVideoId(vid.videoId)}
-                        className="flex-shrink-0 w-28 group/vid relative cursor-pointer overflow-hidden rounded-lg border border-white/10 hover:border-teal-500/50 bg-zinc-950 transition-all duration-200"
-                        title={vid.title}
-                      >
-                        {/* Thumbnail Image */}
-                        <div className="w-full h-14 relative overflow-hidden bg-zinc-900">
-                          {vid.thumbnailUrl && (
-                            <img
-                              src={vid.thumbnailUrl}
-                              alt={vid.title}
-                              className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
-                            />
-                          )}
-                          {/* Play overlay button */}
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
-                            <Play className="w-4 h-4 text-teal-400 fill-teal-400" />
-                          </div>
-                        </div>
-                        {/* Title text */}
-                        <div className="p-1.5">
-                          <p className="text-[9px] text-white font-bold leading-tight line-clamp-1 truncate group-hover/vid:text-teal-400 transition-colors">
-                            {vid.title}
-                          </p>
-                          <p className="text-[8px] text-zinc-500 truncate mt-0.5">{vid.channelTitle}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Quick Suggestions presets */}
             <div className="px-4 py-2 border-t border-white/5 bg-zinc-900/20 flex gap-2 overflow-x-auto no-scrollbar scroll-smooth">
