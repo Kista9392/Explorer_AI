@@ -1,7 +1,7 @@
 ---
 title: Explorer AI
 emoji: 🧭
-colorFrom: teal
+colorFrom: blue
 colorTo: indigo
 sdk: docker
 app_port: 7860
