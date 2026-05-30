@@ -428,11 +428,15 @@ export default function ExplorerPage() {
   }, []);
 
   // Fetch YouTube educational recommendations inside drawer
-  const fetchDrawerVideos = async (topic: string) => {
+  // Fetch YouTube educational recommendations inside drawer
+  const fetchDrawerVideos = async (topic?: string) => {
+    const queryTopic = topic || (selectedConceptProfile ? selectedConceptProfile.name : "") || (selectedNode ? selectedNode.data.label : "");
+    if (!queryTopic) return;
+
     setIsDrawerVideosLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/v1/explore/videos`, {
-        params: { query: topic }
+        params: { query: queryTopic }
       });
       // Slice the top 5 video recommendations!
       setDrawerVideos((res.data || []).slice(0, 5));
@@ -1126,7 +1130,7 @@ export default function ExplorerPage() {
                       </div>
                     ) : drawerVideos.length === 0 ? (
                       <button
-                        onClick={() => fetchDrawerVideos(selectedConceptProfile.name)}
+                        onClick={() => fetchDrawerVideos()}
                         className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 rounded-xl font-bold text-xs cursor-pointer shadow-lg shadow-red-500/5 flex items-center justify-center gap-2 transition-all duration-200"
                       >
                         <Video className="w-4 h-4 text-red-500 animate-pulse animate-bounce" />
