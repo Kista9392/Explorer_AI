@@ -122,7 +122,8 @@ public class ExploreService {
 
     private Concept parseAndSaveConcept(String jsonString, String fallbackName) {
         try {
-            JsonNode root = objectMapper.readTree(jsonString);
+            String cleanedJson = cleanJson(jsonString);
+            JsonNode root = objectMapper.readTree(cleanedJson);
             
             String name = root.has("name") ? root.get("name").asText() : fallbackName;
             String summary = root.has("summary") ? root.get("summary").asText() : "No summary available.";
@@ -203,6 +204,24 @@ public class ExploreService {
                trimmed.contains("fascinating milestone");
     }
 
+    private String cleanJson(String rawJson) {
+        if (rawJson == null) return "";
+        String cleaned = rawJson.trim();
+        if (cleaned.startsWith("```")) {
+            int firstBrace = cleaned.indexOf('{');
+            int lastBrace = cleaned.lastIndexOf('}');
+            if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+                cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+            }
+        }
+        return cleaned.trim();
+    }
+
+    private String getCapitalizedName(String name) {
+        if (name == null || name.isEmpty()) return "Concept";
+        return name.substring(0, 1).toUpperCase() + name.substring(1);
+    }
+
     @Transactional
     public Concept getOrCreateConceptProfile(String conceptName) {
         String normalizedQuery = conceptName.trim();
@@ -220,7 +239,8 @@ public class ExploreService {
             System.out.println("[ExploreService] Database record for \"" + normalizedQuery + "\" is stale, incomplete, or truncated. Initiating dynamic auto-healing...");
             try {
                 String rawJson = geminiService.generateConceptProfile(normalizedQuery);
-                JsonNode root = objectMapper.readTree(rawJson);
+                String cleanedJson = cleanJson(rawJson);
+                JsonNode root = objectMapper.readTree(cleanedJson);
                 
                 // 1. Resilient Summary Parsing
                 String newSummary = null;
@@ -269,18 +289,22 @@ public class ExploreService {
                 concept = conceptRepository.save(concept);
             } catch (Exception e) {
                 System.err.println("[ExploreService] Auto-healing failed for \"" + normalizedQuery + "\": " + e.getMessage());
-                // Fallback details if not already set
+                
+                // Fallback details if not already set or invalid
+                if (isSummaryInvalid(concept.getSummary())) {
+                    concept.setSummary("Explore the deep academic meaning, interdisciplinary connections, and real-world applications of " + getCapitalizedName(normalizedQuery) + " in modern science, philosophy, and technology.");
+                }
                 if (isFieldInvalidOrPlaceholder(concept.getHistoricalContext())) {
-                    concept.setHistoricalContext("Historically, this concept evolved as a key pillar in its scientific field, driving major academic transitions.");
+                    concept.setHistoricalContext("Historically, " + getCapitalizedName(normalizedQuery) + " emerged from key intellectual challenges and scientific discoveries, driving major paradigm shifts in its respective field.");
                 }
                 if (isFieldInvalidOrPlaceholder(concept.getRealWorldImpact())) {
-                    concept.setRealWorldImpact("In the real world, this concept acts as a catalyst for advanced technological systems and research frameworks.");
+                    concept.setRealWorldImpact("In the real world, " + getCapitalizedName(normalizedQuery) + " serves as a powerful foundational pillar for modern industrial pipelines, technical solutions, and everyday applications.");
                 }
                 if (isFieldInvalidOrPlaceholder(concept.getAcademicSignificance())) {
-                    concept.setAcademicSignificance("Academically, this node holds major educational significance, clarifying critical interdisciplinary ideas.");
+                    concept.setAcademicSignificance("Academically, studying " + getCapitalizedName(normalizedQuery) + " provides students and researchers with a rich conceptual framework to understand complex interdisciplinary nodes.");
                 }
                 if (isFieldInvalidOrPlaceholder(concept.getFunFact())) {
-                    concept.setFunFact("This node represents a fascinating milestone on your visual curiosity map!");
+                    concept.setFunFact("Did you know that " + getCapitalizedName(normalizedQuery) + " represents a fascinating intellectual milestone on your interactive curiosity timeline?");
                 }
                 concept = conceptRepository.save(concept);
             }
