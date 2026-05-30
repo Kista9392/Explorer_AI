@@ -223,8 +223,23 @@ public class ExploreService {
     }
 
     @Transactional
-    public ChatSession saveChat(String title, String chatData, User user) {
-        ChatSession session = new ChatSession(title.trim(), chatData.trim(), user);
+    public ChatSession saveChat(String idStr, String title, String chatData, User user) {
+        ChatSession session;
+        if (idStr != null && !idStr.trim().isEmpty()) {
+            try {
+                UUID uuid = UUID.fromString(idStr.trim());
+                Optional<ChatSession> existing = chatRepository.findById(uuid);
+                if (existing.isPresent()) {
+                    session = existing.get();
+                    session.setTitle(title.trim());
+                    session.setChatData(chatData.trim());
+                    return chatRepository.save(session);
+                }
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid UUID and proceed to create new session
+            }
+        }
+        session = new ChatSession(title.trim(), chatData.trim(), user);
         return chatRepository.save(session);
     }
 

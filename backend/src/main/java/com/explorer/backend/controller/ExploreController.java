@@ -173,6 +173,7 @@ public class ExploreController {
     public ResponseEntity<ChatSession> saveChat(
             @RequestBody Map<String, String> request,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String id = request.get("id");
         String title = request.get("title");
         String chatData = request.get("chatData");
 
@@ -181,7 +182,7 @@ public class ExploreController {
         }
 
         User user = resolveUser(authHeader);
-        return ResponseEntity.ok(exploreService.saveChat(title, chatData, user));
+        return ResponseEntity.ok(exploreService.saveChat(id, title, chatData, user));
     }
 
     @GetMapping("/profile/stats")

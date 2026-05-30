@@ -36,7 +36,8 @@ import {
   User,
   Shield,
   Globe,
-  Lock
+  Lock,
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -100,6 +101,7 @@ export default function ExplorerPage() {
   const [isSavingChat, setIsSavingChat] = useState(false);
   const [profileStats, setProfileStats] = useState<any | null>(null);
   const [showStatsCard, setShowStatsCard] = useState(false);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
@@ -457,10 +459,17 @@ export default function ExplorerPage() {
     try {
       const firstUserMsg = chatMessages.find(m => m.sender === 'user')?.text || 'AI Exploration Chat';
       const defaultTitle = firstUserMsg.length > 30 ? firstUserMsg.substring(0, 27) + '...' : firstUserMsg;
-      const payload = { title: defaultTitle, chatData: JSON.stringify(chatMessages) };
-      await axios.post(`${API_BASE}/api/v1/explore/chats`, payload, {
+      const payload = { 
+        id: activeChatId || '', 
+        title: defaultTitle, 
+        chatData: JSON.stringify(chatMessages) 
+      };
+      const res = await axios.post(`${API_BASE}/api/v1/explore/chats`, payload, {
         headers: getAuthHeaders()
       });
+      if (res.data?.id && !activeChatId) {
+        setActiveChatId(res.data.id);
+      }
       alert(`Chat session saved successfully!`);
       await fetchSavedChats();
       await fetchProfileStats();
@@ -472,16 +481,50 @@ export default function ExplorerPage() {
     }
   };
 
+  // Autosave chat session automatically after a reply is completed
+  const triggerAutosaveChat = async (messagesList: any[]) => {
+    if (messagesList.length <= 1) return;
+    try {
+      const firstUserMsg = messagesList.find(m => m.sender === 'user')?.text || 'AI Exploration Chat';
+      const defaultTitle = firstUserMsg.length > 30 ? firstUserMsg.substring(0, 27) + '...' : firstUserMsg;
+      const payload = { 
+        id: activeChatId || '', 
+        title: defaultTitle, 
+        chatData: JSON.stringify(messagesList) 
+      };
+      const res = await axios.post(`${API_BASE}/api/v1/explore/chats`, payload, {
+        headers: getAuthHeaders()
+      });
+      // Store the active chat ID if it's a new session
+      if (res.data?.id && !activeChatId) {
+        setActiveChatId(res.data.id);
+      }
+      await fetchSavedChats();
+      await fetchProfileStats();
+    } catch (err) {
+      console.error('Failed to autosave chat session', err);
+    }
+  };
+
   // Load Saved Chat Session
   const loadSavedChat = (chat: any) => {
     try {
       setChatMessages(JSON.parse(chat.chatData));
+      setActiveChatId(chat.id); // Bind the active chat ID!
       setShowChat(true);
       setShowHistoryDrawer(false);
     } catch (err) {
       console.error('Failed to restore chat data', err);
       alert('Corrupted chat history.');
     }
+  };
+
+  // Initialize a pristine New Chat Session
+  const handleNewChat = () => {
+    setChatMessages([
+      { sender: 'assistant', text: 'Greetings, fellow explorer! I am your Explorer AI Assistant. Select any node on the knowledge graph to give me context, or ask me any conceptual query directly!' }
+    ]);
+    setActiveChatId(null);
   };
 
   // Scroll to bottom of chat whenever messages list updates
@@ -519,7 +562,11 @@ export default function ExplorerPage() {
       const assistantText = chatRes.data?.response || 'I am sorry, my analytical buffers encountered an anomaly. Please try again.';
       const fetchedVideos = videosRes.data || [];
 
-      setChatMessages(prev => [...prev, { sender: 'assistant', text: assistantText, videos: fetchedVideos }]);
+      setChatMessages(prev => {
+        const nextList = [...prev, { sender: 'assistant', text: assistantText, videos: fetchedVideos }];
+        triggerAutosaveChat(nextList);
+        return nextList;
+      });
     } catch (err: any) {
       if (err.response?.data?.error === 'SafetyViolation') {
         setSafetyBlock(err.response.data);
@@ -1057,7 +1104,14 @@ export default function ExplorerPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {chatMessages.length > 1 && (
+                 <button
+                   onClick={handleNewChat}
+                   className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-teal-500/35 rounded-lg text-zinc-400 hover:text-teal-400 cursor-pointer"
+                   title="New Chat Session"
+                 >
+                   <Plus className="w-4 h-4" />
+                 </button>
+                 {chatMessages.length > 1 && (
                    <button
                      onClick={handleSaveChat}
                      disabled={isSavingChat}
@@ -1070,13 +1124,13 @@ export default function ExplorerPage() {
                        <Bookmark className="w-4 h-4" />
                      )}
                    </button>
-                )}
-                <button
-                  onClick={() => setShowChat(false)}
-                  className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                 )}
+                 <button
+                   onClick={() => setShowChat(false)}
+                   className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                 >
+                   <X className="w-4 h-4" />
+                 </button>
               </div>
             </div>
 
