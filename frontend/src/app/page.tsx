@@ -405,22 +405,14 @@ export default function ExplorerPage() {
     setSelectedConceptProfile(null);
     setIsProfileLoading(true);
     setDrawerVideos([]);
-    setIsDrawerVideosLoading(true);
+    setIsDrawerVideosLoading(false);
 
     try {
-      // 1. Fetch detailed concept profile
-      const profilePromise = axios.get(`${API_BASE}/api/v1/explore/concept?name=${encodeURIComponent(node.data.label)}`);
-
-      // 2. Fetch YouTube educational recommendations
-      const videosPromise = axios.get(`${API_BASE}/api/v1/explore/videos`, {
-        params: { query: node.data.label }
-      });
-
-      const [profileRes, videosRes] = await Promise.all([profilePromise, videosPromise]);
-      setSelectedConceptProfile(profileRes.data);
-      setDrawerVideos(videosRes.data || []);
+      // Fetch detailed concept profile
+      const res = await axios.get(`${API_BASE}/api/v1/explore/concept?name=${encodeURIComponent(node.data.label)}`);
+      setSelectedConceptProfile(res.data);
     } catch (err) {
-      console.error('Failed to fetch detailed concept profile or recommendations', err);
+      console.error('Failed to fetch detailed concept profile', err);
       // Fallback locally using whatever exists in node data
       setSelectedConceptProfile({
         name: node.data.label,
@@ -432,9 +424,25 @@ export default function ExplorerPage() {
       });
     } finally {
       setIsProfileLoading(false);
-      setIsDrawerVideosLoading(false);
     }
   }, []);
+
+  // Fetch YouTube educational recommendations inside drawer
+  const fetchDrawerVideos = async (topic: string) => {
+    setIsDrawerVideosLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/api/v1/explore/videos`, {
+        params: { query: topic }
+      });
+      // Slice the top 5 video recommendations!
+      setDrawerVideos((res.data || []).slice(0, 5));
+    } catch (err) {
+      console.error("Failed to fetch YouTube recommendations", err);
+      alert("Failed to fetch educational videos.");
+    } finally {
+      setIsDrawerVideosLoading(false);
+    }
+  };
 
   // Save Current Exploration Journey Path
   const handleSavePath = async () => {
@@ -1117,36 +1125,72 @@ export default function ExplorerPage() {
                         <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
                       </div>
                     ) : drawerVideos.length === 0 ? (
-                      <p className="text-[10px] text-zinc-500 italic text-center p-3 rounded-xl border border-white/5 bg-zinc-900/10">No multimedia assets resolved.</p>
+                      <button
+                        onClick={() => fetchDrawerVideos(selectedConceptProfile.name)}
+                        className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 rounded-xl font-bold text-xs cursor-pointer shadow-lg shadow-red-500/5 flex items-center justify-center gap-2 transition-all duration-200"
+                      >
+                        <Video className="w-4 h-4 text-red-500 animate-pulse animate-bounce" />
+                        Watch & Learn: Fetch 5 YouTube Videos
+                      </button>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        {drawerVideos.slice(0, 4).map((vid: any) => (
-                          <div
-                            key={vid.videoId}
-                            onClick={() => setActiveVideoId(vid.videoId)}
-                            className="group/vid relative cursor-pointer overflow-hidden rounded-xl border border-white/5 hover:border-teal-500/40 bg-zinc-900/20 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col h-full shadow-lg"
-                            title={vid.title}
-                          >
-                            <div className="w-full aspect-video relative overflow-hidden bg-zinc-950">
-                              {vid.thumbnailUrl && (
-                                <img
-                                  src={vid.thumbnailUrl}
-                                  alt={vid.title}
-                                  className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
-                                />
-                              )}
-                              <div className="absolute inset-0 bg-black/55 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
-                                <Play className="w-6 h-6 text-teal-400 fill-teal-400 animate-pulse" />
+                      <div className="space-y-3">
+                        {/* Large Featured Video (First Video in list) */}
+                        <div
+                          onClick={() => setActiveVideoId(drawerVideos[0].videoId)}
+                          className="group/vid relative cursor-pointer overflow-hidden rounded-xl border border-red-500/20 hover:border-red-500/40 bg-zinc-900/40 hover:bg-zinc-900/60 transition-all duration-200 flex flex-col shadow-lg"
+                          title={drawerVideos[0].title}
+                        >
+                          <div className="w-full aspect-video relative overflow-hidden bg-zinc-950">
+                            {drawerVideos[0].thumbnailUrl && (
+                              <img
+                                src={drawerVideos[0].thumbnailUrl}
+                                alt={drawerVideos[0].title}
+                                className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
+                              <Play className="w-10 h-10 text-red-500 fill-red-500 animate-pulse" />
+                            </div>
+                            <span className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-red-600 text-[8px] font-black uppercase rounded text-white tracking-widest">Featured</span>
+                          </div>
+                          <div className="p-3 text-left">
+                            <p className="text-xs text-white font-bold leading-snug line-clamp-2 group-hover/vid:text-red-400 transition-colors">
+                              {drawerVideos[0].title}
+                            </p>
+                            <p className="text-[9px] text-zinc-500 mt-1">{drawerVideos[0].channelTitle}</p>
+                          </div>
+                        </div>
+
+                        {/* 2x2 Grid for the other 4 secondary video recommendations */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {drawerVideos.slice(1, 5).map((vid: any) => (
+                            <div
+                              key={vid.videoId}
+                              onClick={() => setActiveVideoId(vid.videoId)}
+                              className="group/vid relative cursor-pointer overflow-hidden rounded-xl border border-white/5 hover:border-red-500/40 bg-zinc-900/20 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col h-full shadow-lg"
+                              title={vid.title}
+                            >
+                              <div className="w-full aspect-video relative overflow-hidden bg-zinc-950">
+                                {vid.thumbnailUrl && (
+                                  <img
+                                    src={vid.thumbnailUrl}
+                                    alt={vid.title}
+                                    className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-black/55 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
+                                  <Play className="w-6 h-6 text-red-500 fill-red-500 animate-pulse" />
+                                </div>
+                              </div>
+                              <div className="p-2 flex-1 flex flex-col justify-between">
+                                <p className="text-[10px] text-white font-bold leading-tight line-clamp-2 text-left group-hover/vid:text-red-400 transition-colors">
+                                  {vid.title}
+                                </p>
+                                <p className="text-[8px] text-zinc-500 truncate text-left mt-1">{vid.channelTitle}</p>
                               </div>
                             </div>
-                            <div className="p-2 flex-1 flex flex-col justify-between">
-                              <p className="text-[10px] text-white font-bold leading-tight line-clamp-2 text-left group-hover/vid:text-teal-400 transition-colors">
-                                {vid.title}
-                              </p>
-                              <p className="text-[8px] text-zinc-500 truncate text-left mt-1">{vid.channelTitle}</p>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
