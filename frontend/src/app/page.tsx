@@ -37,7 +37,8 @@ import {
   Shield,
   Globe,
   Lock,
-  Plus
+  Plus,
+  Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -563,6 +564,34 @@ export default function ExplorerPage() {
     setActiveChatId(null);
   };
 
+  // Rename a saved chat session
+  const handleRenameChat = async (e: React.MouseEvent, chatId: string, currentTitle: string) => {
+    e.stopPropagation(); // Avoid loading the chat when clicking rename
+    const newTitle = prompt("Enter a new title for this chat session:", currentTitle);
+    if (!newTitle || !newTitle.trim() || newTitle.trim() === currentTitle) return;
+
+    try {
+      const chatToUpdate = savedChats.find(c => c.id === chatId);
+      if (!chatToUpdate) return;
+
+      const payload = {
+        id: chatId,
+        title: newTitle.trim(),
+        chatData: chatToUpdate.chatData
+      };
+
+      await axios.post(`${API_BASE}/api/v1/explore/chats`, payload, {
+        headers: getAuthHeaders()
+      });
+
+      await fetchSavedChats();
+      await fetchProfileStats();
+    } catch (err) {
+      console.error("Failed to rename chat session", err);
+      alert("Failed to rename chat.");
+    }
+  };
+
   // Scroll to bottom of chat whenever messages list updates
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -968,7 +997,16 @@ export default function ExplorerPage() {
                             </div>
                             <p className="text-[9px] text-zinc-500 mt-0.5">Created: {new Date(chat.createdAt).toLocaleDateString()}</p>
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={(e) => handleRenameChat(e, chat.id, chat.title)}
+                              className="p-1 rounded bg-zinc-950/40 border border-white/5 hover:border-indigo-500/30 text-zinc-500 hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                              title="Rename Chat"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-indigo-400 transition-colors" />
+                          </div>
                         </div>
                       ))
                     )}
