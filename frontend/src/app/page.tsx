@@ -1194,30 +1194,36 @@ export default function ExplorerPage() {
                       <div className="relative">
                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-teal-400 ring-4 ring-teal-400/20" />
                         <h4 className="text-xs font-bold text-white">Historical Context</h4>
-                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{selectedConceptProfile.historicalContext}</p>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                          {selectedConceptProfile.historicalContext || selectedConceptProfile.historical_context}
+                        </p>
                       </div>
                       <div className="relative">
                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-indigo-500/20" />
                         <h4 className="text-xs font-bold text-white">Real-world Impact</h4>
-                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{selectedConceptProfile.realWorldImpact}</p>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                          {selectedConceptProfile.realWorldImpact || selectedConceptProfile.real_world_impact}
+                        </p>
                       </div>
                       <div className="relative">
                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
                         <h4 className="text-xs font-bold text-white">Academic Significance</h4>
-                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{selectedConceptProfile.academicSignificance}</p>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                          {selectedConceptProfile.academicSignificance || selectedConceptProfile.academic_significance}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   {/* FUN FACT GLOWING GOLDEN BOX */}
-                  {selectedConceptProfile.funFact && (
+                  {(selectedConceptProfile.funFact || selectedConceptProfile.fun_fact) && (
                     <div className="mt-6 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 relative overflow-hidden text-xs text-amber-300 leading-relaxed shadow-lg">
                       <div className="absolute top-0 left-0 w-[3px] h-full bg-amber-400" />
                       <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 mb-1 flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
                         Did You Know?
                       </p>
-                      "{selectedConceptProfile.funFact}"
+                      "{selectedConceptProfile.funFact || selectedConceptProfile.fun_fact}"
                     </div>
                   )}
 
