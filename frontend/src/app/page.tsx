@@ -466,10 +466,13 @@ export default function ExplorerPage() {
 
     try {
       // Fetch detailed concept profile
+      console.log("[onNodeClick] Fetching detailed profile for node label:", node.data.label);
+      console.log("[onNodeClick] Node data object:", node.data);
       const res = await axios.get(`${API_BASE}/api/v1/explore/concept?name=${encodeURIComponent(node.data.label)}`);
+      console.log("[onNodeClick] Fetch Concept Profile success:", res.data);
       setSelectedConceptProfile(res.data);
     } catch (err) {
-      console.error('Failed to fetch detailed concept profile', err);
+      console.error('[onNodeClick] Failed to fetch detailed concept profile', err);
       // Fallback locally using whatever exists in node data
       setSelectedConceptProfile({
         name: node.data.label,

@@ -4,6 +4,7 @@ import com.explorer.backend.dto.ExploreResponse;
 import com.explorer.backend.entity.ExplorationPath;
 import com.explorer.backend.entity.User;
 import com.explorer.backend.entity.ChatSession;
+import com.explorer.backend.entity.Concept;
 import com.explorer.backend.service.AuthService;
 import com.explorer.backend.service.ExploreService;
 import com.explorer.backend.service.YouTubeService;
@@ -160,7 +161,14 @@ public class ExploreController {
         if (name == null || name.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(exploreService.getOrCreateConceptProfile(name));
+        Concept profile = exploreService.getOrCreateConceptProfile(name);
+        System.out.println("[ExploreController] Concept Profile for: " + name);
+        System.out.println("  - Summary: " + (profile.getSummary() == null ? "null" : "\"" + profile.getSummary() + "\" (len=" + profile.getSummary().length() + ")"));
+        System.out.println("  - HistoricalContext: " + (profile.getHistoricalContext() == null ? "null" : "\"" + profile.getHistoricalContext() + "\""));
+        System.out.println("  - RealWorldImpact: " + (profile.getRealWorldImpact() == null ? "null" : "\"" + profile.getRealWorldImpact() + "\""));
+        System.out.println("  - AcademicSignificance: " + (profile.getAcademicSignificance() == null ? "null" : "\"" + profile.getAcademicSignificance() + "\""));
+        System.out.println("  - FunFact: " + (profile.getFunFact() == null ? "null" : "\"" + profile.getFunFact() + "\""));
+        return ResponseEntity.ok(profile);
     }
 
     @GetMapping("/chats")
