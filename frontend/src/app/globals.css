@@ -66,3 +66,16 @@ body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* Futuristic moving data light-packet flow keyframes */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.edge-flow {
+  stroke-dasharray: 6, 18;
+  animation: dash 1.8s linear infinite;
+}
+

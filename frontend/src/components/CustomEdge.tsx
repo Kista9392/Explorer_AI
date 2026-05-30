@@ -39,6 +39,19 @@ export const CustomEdge = ({
           transition: 'stroke 0.3s ease, stroke-width 0.3s ease',
         }}
       />
+
+      {/* Dynamic Animated Flow Line */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={isHovered ? '#2dd4bf' : '#6366f1'}
+        strokeWidth={1.5}
+        className="edge-flow opacity-60"
+        style={{
+          transition: 'stroke 0.3s ease',
+          pointerEvents: 'none',
+        }}
+      />
       
       {/* Transparent thick line for easier hovering */}
       <path

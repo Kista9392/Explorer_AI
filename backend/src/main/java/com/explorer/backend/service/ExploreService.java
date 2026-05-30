@@ -169,5 +169,42 @@ public class ExploreService {
     public String chatWithConcept(String message, String conceptContext) {
         return geminiService.chatWithConcept(message, conceptContext);
     }
+
+    @Transactional
+    public Concept getOrCreateConceptProfile(String conceptName) {
+        String normalizedQuery = conceptName.trim();
+        Concept concept = conceptRepository.findByNameIgnoreCase(normalizedQuery)
+                .orElseGet(() -> conceptRepository.save(new Concept(normalizedQuery, "A fascinating concept within the visual knowledge map.")));
+
+        // If the rich detailed fields are not set, fetch them dynamically using Gemini and save
+        if (concept.getHistoricalContext() == null || concept.getHistoricalContext().isEmpty()) {
+            try {
+                String rawJson = geminiService.generateConceptProfile(normalizedQuery);
+                JsonNode root = objectMapper.readTree(rawJson);
+                
+                if (root.has("historicalContext")) {
+                    concept.setHistoricalContext(root.get("historicalContext").asText());
+                }
+                if (root.has("realWorldImpact")) {
+                    concept.setRealWorldImpact(root.get("realWorldImpact").asText());
+                }
+                if (root.has("academicSignificance")) {
+                    concept.setAcademicSignificance(root.get("academicSignificance").asText());
+                }
+                if (root.has("funFact")) {
+                    concept.setFunFact(root.get("funFact").asText());
+                }
+                concept = conceptRepository.save(concept);
+            } catch (Exception e) {
+                // Graceful fallback values
+                concept.setHistoricalContext("Historically, this concept evolved as a key pillar in its scientific field, driving major academic transitions.");
+                concept.setRealWorldImpact("In the real world, this concept acts as a catalyst for advanced technological systems and research frameworks.");
+                concept.setAcademicSignificance("Academically, this node holds major educational significance, clarifying critical interdisciplinary ideas.");
+                concept.setFunFact("This node represents a fascinating milestone on your visual curiosity map!");
+                concept = conceptRepository.save(concept);
+            }
+        }
+        return concept;
+    }
 }
 

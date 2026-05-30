@@ -85,6 +85,10 @@ export default function ExplorerPage() {
   // Regulatory Safety Block States
   const [safetyBlock, setSafetyBlock] = useState<any | null>(null);
 
+  // Dynamic Detailed Concept Profile States
+  const [selectedConceptProfile, setSelectedConceptProfile] = useState<any | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+
   // Google OAuth Authentication States
   const [authUser, setAuthUser] = useState<any | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -339,8 +343,28 @@ export default function ExplorerPage() {
   }, [setNodes, setEdges]);
 
   // Click handler when selecting any node in React Flow
-  const onNodeClick = useCallback((_: any, node: any) => {
+  const onNodeClick = useCallback(async (_: any, node: any) => {
     setSelectedNode(node);
+    setSelectedConceptProfile(null);
+    setIsProfileLoading(true);
+
+    try {
+      const res = await axios.get(`${API_BASE}/api/v1/explore/concept?name=${encodeURIComponent(node.data.label)}`);
+      setSelectedConceptProfile(res.data);
+    } catch (err) {
+      console.error('Failed to fetch detailed concept profile', err);
+      // Fallback locally using whatever exists in node data
+      setSelectedConceptProfile({
+        name: node.data.label,
+        summary: node.data.summary,
+        historicalContext: "Historically, this concept evolved as a key pillar in its scientific field, driving major academic transitions.",
+        realWorldImpact: "In the real world, this concept acts as a catalyst for advanced technological systems and research frameworks.",
+        academicSignificance: "Academically, this node holds major educational significance, clarifying critical interdisciplinary ideas.",
+        funFact: "This node represents a fascinating milestone on your visual curiosity map!"
+      });
+    } finally {
+      setIsProfileLoading(false);
+    }
   }, []);
 
   // Save Current Exploration Journey Path
@@ -567,6 +591,9 @@ export default function ExplorerPage() {
 
       {/* MAIN REACT FLOW GRAPH CANVAS */}
       <div className="w-full h-full relative z-10">
+        {/* Futuristic glowing backdrop orbs for visual depth */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.05),rgba(99,102,241,0.05)_40%,transparent_75%)] pointer-events-none z-0 animate-pulse duration-[8000ms]" />
+
         {nodes.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto z-10 pointer-events-none">
             <motion.div 
@@ -738,32 +765,64 @@ export default function ExplorerPage() {
               {/* Title Concept Header */}
               <h2 className="text-2xl font-black text-white glow-text-teal tracking-tight mb-4">{selectedNode.data.label}</h2>
               
-              {/* Detailed Summary description */}
-              <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300">
-                {/* Decorative glow lines */}
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-indigo-600" />
-                {selectedNode.data.summary}
-              </div>
-
-              {/* EXPLORE TIMELINE / ADDITIONAL NOTES */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                  Curiosity timeline
-                </p>
-                <div className="space-y-3.5 relative pl-4 border-l border-white/10">
-                  <div className="relative">
-                    <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-teal-400 ring-4 ring-teal-400/20" />
-                    <h4 className="text-xs font-bold text-white">Historical Context</h4>
-                    <p className="text-[11px] text-zinc-400 mt-1">Emerged as a major intellectual connection in academic and experimental scientific literature, altering classic conceptual models.</p>
-                  </div>
-                  <div className="relative">
-                    <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-indigo-500/20" />
-                    <h4 className="text-xs font-bold text-white">Real-world Impact</h4>
-                    <p className="text-[11px] text-zinc-400 mt-1">Drives modern research architectures, technological frameworks, and fundamental philosophical perspectives on consciousness and nature.</p>
-                  </div>
+              {isProfileLoading ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-4">
+                  <Loader2 className="w-8 h-8 text-teal-400 animate-spin glow-text-teal" />
+                  <p className="text-xs text-zinc-500 italic animate-pulse text-center">Consulting Gemini for detailed conceptual profile...</p>
                 </div>
-              </div>
+              ) : selectedConceptProfile ? (
+                <>
+                  {/* Detailed Summary description */}
+                  <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300 animate-fade-in">
+                    {/* Decorative glow lines */}
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-indigo-600" />
+                    {selectedConceptProfile.summary}
+                  </div>
+
+                  {/* EXPLORE TIMELINE / ADDITIONAL NOTES */}
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                      Curiosity timeline
+                    </p>
+                    <div className="space-y-3.5 relative pl-4 border-l border-white/10">
+                      <div className="relative">
+                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-teal-400 ring-4 ring-teal-400/20" />
+                        <h4 className="text-xs font-bold text-white">Historical Context</h4>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{selectedConceptProfile.historicalContext}</p>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-indigo-500/20" />
+                        <h4 className="text-xs font-bold text-white">Real-world Impact</h4>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{selectedConceptProfile.realWorldImpact}</p>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
+                        <h4 className="text-xs font-bold text-white">Academic Significance</h4>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{selectedConceptProfile.academicSignificance}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* FUN FACT GLOWING GOLDEN BOX */}
+                  {selectedConceptProfile.funFact && (
+                    <div className="mt-6 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 relative overflow-hidden text-xs text-amber-300 leading-relaxed shadow-lg">
+                      <div className="absolute top-0 left-0 w-[3px] h-full bg-amber-400" />
+                      <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 mb-1 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+                        Did You Know?
+                      </p>
+                      "{selectedConceptProfile.funFact}"
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300">
+                  {/* Decorative glow lines */}
+                  <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-indigo-600" />
+                  {selectedNode.data.summary}
+                </div>
+              )}
 
               {/* BUTTON TO EXPAND PATH FROM DRAWER */}
               {!selectedNode.data.isExpanded && (

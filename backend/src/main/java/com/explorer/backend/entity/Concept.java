@@ -19,6 +19,18 @@ public class Concept {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String summary;
 
+    @Column(name = "historical_context", columnDefinition = "TEXT")
+    private String historicalContext;
+
+    @Column(name = "real_world_impact", columnDefinition = "TEXT")
+    private String realWorldImpact;
+
+    @Column(name = "academic_significance", columnDefinition = "TEXT")
+    private String academicSignificance;
+
+    @Column(name = "fun_fact", columnDefinition = "TEXT")
+    private String funFact;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -38,6 +50,18 @@ public class Concept {
 
     public String getSummary() { return summary; }
     public void setSummary(String summary) { this.summary = summary; }
+
+    public String getHistoricalContext() { return historicalContext; }
+    public void setHistoricalContext(String historicalContext) { this.historicalContext = historicalContext; }
+
+    public String getRealWorldImpact() { return realWorldImpact; }
+    public void setRealWorldImpact(String realWorldImpact) { this.realWorldImpact = realWorldImpact; }
+
+    public String getAcademicSignificance() { return academicSignificance; }
+    public void setAcademicSignificance(String academicSignificance) { this.academicSignificance = academicSignificance; }
+
+    public String getFunFact() { return funFact; }
+    public void setFunFact(String funFact) { this.funFact = funFact; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

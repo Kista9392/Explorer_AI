@@ -152,4 +152,12 @@ public class ExploreController {
         }
         return ResponseEntity.ok(youtubeService.searchEducationalVideos(query));
     }
+
+    @GetMapping("/concept")
+    public ResponseEntity<?> getConceptProfile(@RequestParam String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(exploreService.getOrCreateConceptProfile(name));
+    }
 }
