@@ -181,44 +181,107 @@ public class ExploreService {
         return geminiService.chatWithConcept(message, conceptContext);
     }
 
+    private boolean isSummaryInvalid(String summary) {
+        if (summary == null) return true;
+        String trimmed = summary.trim();
+        return trimmed.isEmpty() || 
+               trimmed.length() < 50 || 
+               trimmed.endsWith("-") || 
+               trimmed.contains("No summary available") ||
+               trimmed.contains("A fascinating concept within the visual");
+    }
+
+    private boolean isFieldInvalidOrPlaceholder(String text) {
+        if (text == null) return true;
+        String trimmed = text.trim();
+        return trimmed.isEmpty() || 
+               trimmed.equalsIgnoreCase("null") || 
+               trimmed.equalsIgnoreCase("undefined") ||
+               trimmed.contains("Historically, this concept evolved") ||
+               trimmed.contains("In the real world, this concept") ||
+               trimmed.contains("Academically, this node") ||
+               trimmed.contains("fascinating milestone");
+    }
+
     @Transactional
     public Concept getOrCreateConceptProfile(String conceptName) {
         String normalizedQuery = conceptName.trim();
         Concept concept = conceptRepository.findByNameIgnoreCase(normalizedQuery)
                 .orElseGet(() -> conceptRepository.save(new Concept(normalizedQuery, "A fascinating concept within the visual knowledge map.")));
 
-        boolean isPlaceholder = (concept.getHistoricalContext() != null && concept.getHistoricalContext().contains("Historically, this concept evolved")) ||
-                                (concept.getRealWorldImpact() != null && concept.getRealWorldImpact().contains("In the real world, this concept")) ||
-                                (concept.getAcademicSignificance() != null && concept.getAcademicSignificance().contains("Academically, this node")) ||
-                                (concept.getFunFact() != null && concept.getFunFact().contains("fascinating milestone"));
+        boolean needsHealing = isSummaryInvalid(concept.getSummary()) ||
+                               isFieldInvalidOrPlaceholder(concept.getHistoricalContext()) ||
+                               isFieldInvalidOrPlaceholder(concept.getRealWorldImpact()) ||
+                               isFieldInvalidOrPlaceholder(concept.getAcademicSignificance()) ||
+                               isFieldInvalidOrPlaceholder(concept.getFunFact());
 
-        // If any of the rich detailed fields or fun fact are not set (or are a generic placeholder), fetch them dynamically using Gemini and save
-        if (concept.getHistoricalContext() == null || concept.getHistoricalContext().isEmpty() ||
-            concept.getFunFact() == null || concept.getFunFact().isEmpty() ||
-            isPlaceholder) {
+        // If summary is truncated or any details are missing/placeholders, heal it dynamically using Gemini!
+        if (needsHealing) {
+            System.out.println("[ExploreService] Database record for \"" + normalizedQuery + "\" is stale, incomplete, or truncated. Initiating dynamic auto-healing...");
             try {
                 String rawJson = geminiService.generateConceptProfile(normalizedQuery);
                 JsonNode root = objectMapper.readTree(rawJson);
                 
-                if (root.has("historicalContext")) {
-                    concept.setHistoricalContext(root.get("historicalContext").asText());
+                // 1. Resilient Summary Parsing
+                String newSummary = null;
+                if (root.has("summary")) newSummary = root.get("summary").asText();
+                
+                if (newSummary != null && !isSummaryInvalid(newSummary)) {
+                    concept.setSummary(newSummary);
+                    System.out.println("[ExploreService] Healed summary for \"" + normalizedQuery + "\"");
                 }
-                if (root.has("realWorldImpact")) {
-                    concept.setRealWorldImpact(root.get("realWorldImpact").asText());
+
+                // 2. Resilient Timeline Fields Parsing (Supporting camelCase OR snake_case)
+                String hist = null;
+                if (root.has("historicalContext")) hist = root.get("historicalContext").asText();
+                else if (root.has("historical_context")) hist = root.get("historical_context").asText();
+                
+                if (hist != null && !isFieldInvalidOrPlaceholder(hist)) {
+                    concept.setHistoricalContext(hist);
                 }
-                if (root.has("academicSignificance")) {
-                    concept.setAcademicSignificance(root.get("academicSignificance").asText());
+
+                String impact = null;
+                if (root.has("realWorldImpact")) impact = root.get("realWorldImpact").asText();
+                else if (root.has("real_world_impact")) impact = root.get("real_world_impact").asText();
+                
+                if (impact != null && !isFieldInvalidOrPlaceholder(impact)) {
+                    concept.setRealWorldImpact(impact);
                 }
-                if (root.has("funFact")) {
-                    concept.setFunFact(root.get("funFact").asText());
+
+                String academic = null;
+                if (root.has("academicSignificance")) academic = root.get("academicSignificance").asText();
+                else if (root.has("academic_significance")) academic = root.get("academic_significance").asText();
+                
+                if (academic != null && !isFieldInvalidOrPlaceholder(academic)) {
+                    concept.setAcademicSignificance(academic);
                 }
+
+                // 3. Resilient Fun Fact Parsing
+                String fun = null;
+                if (root.has("funFact")) fun = root.get("funFact").asText();
+                else if (root.has("fun_fact")) fun = root.get("fun_fact").asText();
+                
+                if (fun != null && !isFieldInvalidOrPlaceholder(fun)) {
+                    concept.setFunFact(fun);
+                    System.out.println("[ExploreService] Healed fun fact for \"" + normalizedQuery + "\"");
+                }
+
                 concept = conceptRepository.save(concept);
             } catch (Exception e) {
-                // Graceful fallback values
-                concept.setHistoricalContext("Historically, this concept evolved as a key pillar in its scientific field, driving major academic transitions.");
-                concept.setRealWorldImpact("In the real world, this concept acts as a catalyst for advanced technological systems and research frameworks.");
-                concept.setAcademicSignificance("Academically, this node holds major educational significance, clarifying critical interdisciplinary ideas.");
-                concept.setFunFact("This node represents a fascinating milestone on your visual curiosity map!");
+                System.err.println("[ExploreService] Auto-healing failed for \"" + normalizedQuery + "\": " + e.getMessage());
+                // Fallback details if not already set
+                if (isFieldInvalidOrPlaceholder(concept.getHistoricalContext())) {
+                    concept.setHistoricalContext("Historically, this concept evolved as a key pillar in its scientific field, driving major academic transitions.");
+                }
+                if (isFieldInvalidOrPlaceholder(concept.getRealWorldImpact())) {
+                    concept.setRealWorldImpact("In the real world, this concept acts as a catalyst for advanced technological systems and research frameworks.");
+                }
+                if (isFieldInvalidOrPlaceholder(concept.getAcademicSignificance())) {
+                    concept.setAcademicSignificance("Academically, this node holds major educational significance, clarifying critical interdisciplinary ideas.");
+                }
+                if (isFieldInvalidOrPlaceholder(concept.getFunFact())) {
+                    concept.setFunFact("This node represents a fascinating milestone on your visual curiosity map!");
+                }
                 concept = conceptRepository.save(concept);
             }
         }

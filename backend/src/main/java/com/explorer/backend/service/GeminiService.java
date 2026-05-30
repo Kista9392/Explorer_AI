@@ -169,6 +169,7 @@ public class GeminiService {
         String prompt = "You are the Explorer AI detailed analyst. Generate a highly detailed, node-specific academic context profile for the concept: \"" + conceptName + "\".\n" +
                 "You MUST return a valid JSON object matching the following structure:\n" +
                 "{\n" +
+                "  \"summary\": \"A highly intelligent, complete 3-sentence summary of the concept covering its core meaning, context, and impact without truncation.\",\n" +
                 "  \"historicalContext\": \"A rich 1-paragraph summary (3-4 sentences) outlining the historical origin, initial discovery, key pioneers, or intellectual birth of this concept.\",\n" +
                 "  \"realWorldImpact\": \"A rich 1-paragraph summary (3-4 sentences) outlining how this concept is used in real-world technology, industries, modern architectures, or daily life.\",\n" +
                 "  \"academicSignificance\": \"A rich 1-paragraph summary (3-4 sentences) explaining its core theoretical or educational significance in human knowledge, science, or philosophy.\",\n" +

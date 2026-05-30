@@ -41,9 +41,38 @@ public class YouTubeService {
 
         System.out.println("[YouTubeService] Using API key: " + apiKey.substring(0, Math.min(8, apiKey.length())) + "... (length=" + apiKey.length() + ")");
 
+        // 1. Try highly targeted query: educational lecture documentary
+        List<Map<String, String>> results = executeSearch(conceptName + " educational lecture documentary");
+
+        // 2. Try secondary query: crash course
+        if (results.isEmpty()) {
+            System.out.println("[YouTubeService] Primary query returned 0 results. Trying crash course query.");
+            results = executeSearch(conceptName + " crash course");
+        }
+
+        // 3. Try tertiary query: science explanation
+        if (results.isEmpty()) {
+            System.out.println("[YouTubeService] Secondary query returned 0 results. Trying science explanation query.");
+            results = executeSearch(conceptName + " science explanation");
+        }
+
+        // 4. Try basic query: just the concept name
+        if (results.isEmpty()) {
+            System.out.println("[YouTubeService] Tertiary query returned 0 results. Trying basic name query.");
+            results = executeSearch(conceptName);
+        }
+
+        if (!results.isEmpty()) {
+            System.out.println("[YouTubeService] SUCCESS: Returning " + results.size() + " real YouTube videos.");
+            return results;
+        }
+
+        System.out.println("[YouTubeService] All search queries returned 0 results. Returning fallback videos.");
+        return getFallbackVideos(conceptName);
+    }
+
+    private List<Map<String, String>> executeSearch(String query) {
         try {
-            // Search query targeted at high quality educational content
-            String query = conceptName + " educational lecture documentary";
             String url = UriComponentsBuilder.fromHttpUrl("https://www.googleapis.com/youtube/v3/search")
                     .queryParam("part", "snippet")
                     .queryParam("maxResults", 5)
@@ -52,29 +81,23 @@ public class YouTubeService {
                     .queryParam("key", apiKey)
                     .toUriString();
 
-            System.out.println("[YouTubeService] Calling YouTube API...");
+            System.out.println("[YouTubeService] Calling YouTube API for query: " + query);
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
-            System.out.println("[YouTubeService] YouTube API response status: " + response.getStatusCode());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<Map<String, String>> results = new ArrayList<>();
                 List items = (List) response.getBody().get("items");
-                System.out.println("[YouTubeService] Items returned: " + (items == null ? 0 : items.size()));
-                if (items == null || items.isEmpty()) {
-                    System.out.println("[YouTubeService] Response body is: " + response.getBody());
-                }
-
                 if (items != null && !items.isEmpty()) {
+                    List<Map<String, String>> results = new ArrayList<>();
                     for (Object itemObj : items) {
                         Map item = (Map) itemObj;
                         Map idMap = (Map) item.get("id");
                         Map snippet = (Map) item.get("snippet");
-                        
+
                         if (idMap != null && snippet != null) {
                             String videoId = (String) idMap.get("videoId");
                             String title = (String) snippet.get("title");
                             String channelTitle = (String) snippet.get("channelTitle");
-                            
+
                             // Extract medium thumbnail, fallback to default
                             String thumbnailUrl = "";
                             Map thumbnails = (Map) snippet.get("thumbnails");
@@ -89,7 +112,7 @@ public class YouTubeService {
                                     }
                                 }
                             }
-                            
+
                             if (videoId != null) {
                                 Map<String, String> videoData = new HashMap<>();
                                 videoData.put("videoId", videoId);
@@ -100,20 +123,16 @@ public class YouTubeService {
                             }
                         }
                     }
-                    System.out.println("[YouTubeService] SUCCESS: Returning " + results.size() + " real YouTube videos.");
                     return results;
                 }
             }
         } catch (Exception e) {
-            System.err.println("[YouTubeService] FAILED: YouTube API error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            System.err.println("[YouTubeService] Search call failed for query [" + query + "]: " + e.getMessage());
             if (e.getMessage() != null && e.getMessage().contains("403")) {
-                System.err.println("[YouTubeService] HINT: 403 usually means the YouTube Data API v3 is NOT enabled for your Google Cloud project, or the API key has restrictions.");
-            } else if (e.getMessage() != null && e.getMessage().contains("400")) {
-                System.err.println("[YouTubeService] HINT: 400 usually means the API key is invalid or malformed.");
+                System.err.println("[YouTubeService] HINT: 403 Forbidden. YouTube Data API v3 might not be enabled or has restrictions.");
             }
         }
-        System.out.println("[YouTubeService] Returning fallback videos.");
-        return getFallbackVideos(conceptName);
+        return Collections.emptyList();
     }
 
     private List<Map<String, String>> getFallbackVideos(String conceptName) {
