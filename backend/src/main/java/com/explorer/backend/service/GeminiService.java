@@ -29,7 +29,7 @@ public class GeminiService {
             }
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;
 
         // Structured prompt mapping the desired visual JSON schema
         String prompt = "You are the Explorer AI, a visual knowledge graph generator. When a user requests a concept, you return a concise visual summary and exactly 5 to 7 logical, interdisciplinary related concepts that naturally branch out.\n" +
@@ -98,7 +98,7 @@ public class GeminiService {
             }
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;
 
         String systemInstruction = "You are the Explorer AI Chat Assistant, a highly intelligent, visual knowledge explorer and friendly learning tutor. "
                 + "You help curiosity-driven users explore connections, theories, sciences, and ideas.\n";
