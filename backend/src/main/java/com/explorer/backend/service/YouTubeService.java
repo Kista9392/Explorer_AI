@@ -60,6 +60,9 @@ public class YouTubeService {
                 List<Map<String, String>> results = new ArrayList<>();
                 List items = (List) response.getBody().get("items");
                 System.out.println("[YouTubeService] Items returned: " + (items == null ? 0 : items.size()));
+                if (items == null || items.isEmpty()) {
+                    System.out.println("[YouTubeService] Response body is: " + response.getBody());
+                }
 
                 if (items != null && !items.isEmpty()) {
                     for (Object itemObj : items) {
