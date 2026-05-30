@@ -525,7 +525,42 @@ export default function ExplorerPage() {
         setSafetyBlock(err.response.data);
       } else {
         console.error('Failed to chat with AI assistant', err);
-        setChatMessages(prev => [...prev, { sender: 'assistant', text: 'Communication array offline. Please ensure the backend server is running and the Gemini API key is valid.' }]);
+        
+        // Detect 429 Rate Limit error vs general server/network anomaly
+        const isRateLimit = err.response?.status === 429;
+        const baseMsg = isRateLimit 
+          ? "Rate limit exceeded (15 RPM cap hit). Re-establishing satellite link in " 
+          : "Communication array offline (Network anomaly). Calibrating transmitters in ";
+        
+        const cooldownSeconds = isRateLimit ? 30 : 15;
+        const msgId = `err-${Date.now()}`;
+        
+        // Append initial message
+        setChatMessages(prev => [
+          ...prev, 
+          { 
+            id: msgId,
+            sender: 'assistant', 
+            text: `${baseMsg}${cooldownSeconds}s...` 
+          }
+        ]);
+
+        let remaining = cooldownSeconds;
+        const intervalId = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            clearInterval(intervalId);
+            setChatMessages(prev => prev.map(m => m.id === msgId ? {
+              ...m,
+              text: "Communication link re-established! You may now retry sending your message."
+            } : m));
+          } else {
+            setChatMessages(prev => prev.map(m => m.id === msgId ? {
+              ...m,
+              text: `${baseMsg}${remaining}s...`
+            } : m));
+          }
+        }, 1000);
       }
     } finally {
       setIsChatLoading(false);
