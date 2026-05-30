@@ -3,6 +3,7 @@ package com.explorer.backend.controller;
 import com.explorer.backend.dto.ExploreResponse;
 import com.explorer.backend.entity.ExplorationPath;
 import com.explorer.backend.entity.User;
+import com.explorer.backend.entity.ChatSession;
 import com.explorer.backend.service.AuthService;
 import com.explorer.backend.service.ExploreService;
 import com.explorer.backend.service.YouTubeService;
@@ -159,5 +160,34 @@ public class ExploreController {
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok(exploreService.getOrCreateConceptProfile(name));
+    }
+
+    @GetMapping("/chats")
+    public ResponseEntity<List<ChatSession>> getSavedChats(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User user = resolveUser(authHeader);
+        return ResponseEntity.ok(exploreService.getAllChats(user));
+    }
+
+    @PostMapping("/chats")
+    public ResponseEntity<ChatSession> saveChat(
+            @RequestBody Map<String, String> request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String title = request.get("title");
+        String chatData = request.get("chatData");
+
+        if (title == null || title.trim().isEmpty() || chatData == null || chatData.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        User user = resolveUser(authHeader);
+        return ResponseEntity.ok(exploreService.saveChat(title, chatData, user));
+    }
+
+    @GetMapping("/profile/stats")
+    public ResponseEntity<Map<String, Long>> getProfileStats(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User user = resolveUser(authHeader);
+        return ResponseEntity.ok(exploreService.getUserStats(user));
     }
 }

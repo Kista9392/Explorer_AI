@@ -4,10 +4,12 @@ C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\dto\EdgeDTO.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\dto\ExploreResponse.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\dto\NodeDTO.java
+C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\ChatSession.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\Concept.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\ConceptConnection.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\ExplorationPath.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\entity\User.java
+C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ChatSessionRepository.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ConceptConnectionRepository.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ConceptRepository.java
 C:\Users\dell\.gemini\antigravity\scratch\ai-explorer\backend\src\main\java\com\explorer\backend\repository\ExplorationPathRepository.java

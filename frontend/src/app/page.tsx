@@ -95,6 +95,12 @@ export default function ExplorerPage() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
+  // Saved Chat Sessions & Stats States
+  const [savedChats, setSavedChats] = useState<any[]>([]);
+  const [isSavingChat, setIsSavingChat] = useState(false);
+  const [profileStats, setProfileStats] = useState<any | null>(null);
+  const [showStatsCard, setShowStatsCard] = useState(false);
+
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
     custom: CustomNode
@@ -188,9 +194,11 @@ export default function ExplorerPage() {
     }
   }, [authUser, renderGoogleButton]);
 
-  // Fetch saved path journeys on mount and when auth changes
+  // Fetch saved paths, saved chats, and profile stats on mount and when auth changes
   useEffect(() => {
     fetchSavedPaths();
+    fetchSavedChats();
+    fetchProfileStats();
   }, [authToken]);
 
   const fetchSavedPaths = async () => {
@@ -201,6 +209,28 @@ export default function ExplorerPage() {
       setSavedPaths(res.data || []);
     } catch (err) {
       console.error('Failed to load explorer paths', err);
+    }
+  };
+
+  const fetchSavedChats = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/v1/explore/chats`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+      setSavedChats(res.data || []);
+    } catch (err) {
+      console.error('Failed to load saved chats', err);
+    }
+  };
+
+  const fetchProfileStats = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/v1/explore/profile/stats`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+      setProfileStats(res.data || null);
+    } catch (err) {
+      console.error('Failed to load profile stats', err);
     }
   };
 
@@ -420,6 +450,40 @@ export default function ExplorerPage() {
     }
   };
 
+  // Save Current Chat Session
+  const handleSaveChat = async () => {
+    if (chatMessages.length <= 1 || isSavingChat) return;
+    setIsSavingChat(true);
+    try {
+      const firstUserMsg = chatMessages.find(m => m.sender === 'user')?.text || 'AI Exploration Chat';
+      const defaultTitle = firstUserMsg.length > 30 ? firstUserMsg.substring(0, 27) + '...' : firstUserMsg;
+      const payload = { title: defaultTitle, chatData: JSON.stringify(chatMessages) };
+      await axios.post(`${API_BASE}/api/v1/explore/chats`, payload, {
+        headers: getAuthHeaders()
+      });
+      alert(`Chat session saved successfully!`);
+      await fetchSavedChats();
+      await fetchProfileStats();
+    } catch (err) {
+      console.error('Failed to save chat session', err);
+      alert('Failed to save chat session.');
+    } finally {
+      setIsSavingChat(false);
+    }
+  };
+
+  // Load Saved Chat Session
+  const loadSavedChat = (chat: any) => {
+    try {
+      setChatMessages(JSON.parse(chat.chatData));
+      setShowChat(true);
+      setShowHistoryDrawer(false);
+    } catch (err) {
+      console.error('Failed to restore chat data', err);
+      alert('Corrupted chat history.');
+    }
+  };
+
   // Scroll to bottom of chat whenever messages list updates
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -502,41 +566,96 @@ export default function ExplorerPage() {
       {/* TOP-LEFT AUTH WIDGET: Google Sign-In / Profile Pill with nested Logout */}
       <div className="absolute top-6 left-6 z-20 animate-fade-in">
         {authUser ? (
-          <div className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-full bg-zinc-950/85 backdrop-blur-2xl border border-white/10 shadow-lg shadow-black/40 relative">
-            {/* Glowing Indigo/Teal Aura avatar ring */}
-            <div className="relative w-8 h-8 rounded-full group">
-              <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-60 blur-sm group-hover:opacity-90 animate-pulse transition-opacity" />
-              <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-70" />
-              {authUser.pictureUrl ? (
-                <img
-                  src={authUser.pictureUrl}
-                  alt={authUser.name}
-                  className="relative w-full h-full rounded-full object-cover border border-zinc-950"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="relative w-full h-full rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-xs font-black text-teal-400">
-                  {authUser.name?.[0]?.toUpperCase() || '?'}
-                </span>
+          <div 
+            onMouseEnter={() => setShowStatsCard(true)}
+            onMouseLeave={() => setShowStatsCard(false)}
+            className="relative"
+          >
+            {/* Profile Badge Pill */}
+            <div className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-full bg-zinc-950/85 backdrop-blur-2xl border border-white/10 shadow-lg shadow-black/40 relative cursor-pointer select-none">
+              {/* Glowing Indigo/Teal Aura avatar ring */}
+              <div className="relative w-8 h-8 rounded-full group">
+                <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-60 blur-sm group-hover:opacity-90 animate-pulse transition-opacity" />
+                <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-70" />
+                {authUser.pictureUrl ? (
+                  <img
+                    src={authUser.pictureUrl}
+                    alt={authUser.name}
+                    className="relative w-full h-full rounded-full object-cover border border-zinc-950"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="relative w-full h-full rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-xs font-black text-teal-400">
+                    {authUser.name?.[0]?.toUpperCase() || '?'}
+                  </span>
+                )}
+                {/* Online status dot */}
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-zinc-950" />
+              </div>
+
+              {/* User details */}
+              <div className="flex flex-col text-left max-w-[100px] overflow-hidden">
+                <span className="text-[8px] font-black text-teal-400 uppercase tracking-widest leading-none mb-0.5">Explorer</span>
+                <span className="text-xs font-bold text-white truncate leading-none">{authUser.name.split(' ')[0]}</span>
+              </div>
+            </div>
+
+            {/* Account Stats Dropdown Hover Card */}
+            <AnimatePresence>
+              {showStatsCard && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-14 left-0 w-64 p-4 rounded-2xl bg-zinc-950/90 backdrop-blur-3xl border border-white/10 shadow-2xl z-50 flex flex-col space-y-3"
+                >
+                  <div className="flex flex-col text-left">
+                    <span className="text-[10px] font-black text-teal-400 uppercase tracking-widest leading-none mb-1">Account Stats</span>
+                    <span className="text-xs font-bold text-white leading-none truncate">{authUser.name}</span>
+                    <span className="text-[9px] text-zinc-500 mt-1 truncate">{authUser.email}</span>
+                  </div>
+                  
+                  <hr className="border-white/10" />
+                  
+                  <div className="grid grid-cols-1 gap-2 text-[11px]">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/40 border border-white/5">
+                      <span className="text-zinc-400 flex items-center gap-1.5">
+                        <Compass className="w-3.5 h-3.5 text-teal-400" />
+                        Saved Pathways
+                      </span>
+                      <span className="font-bold text-white font-mono">{profileStats?.savedPaths ?? 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/40 border border-white/5">
+                      <span className="text-zinc-400 flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                        AI Chats
+                      </span>
+                      <span className="font-bold text-white font-mono">{profileStats?.savedChats ?? 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/40 border border-white/5">
+                      <span className="text-zinc-400 flex items-center gap-1.5">
+                        <Network className="w-3.5 h-3.5 text-emerald-400" />
+                        Knowledge Nodes
+                      </span>
+                      <span className="font-bold text-white font-mono">{profileStats?.discoveredNodes ?? 0}</span>
+                    </div>
+                  </div>
+
+                  <hr className="border-white/10" />
+
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full py-2 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-xl text-xs font-bold text-red-400 cursor-pointer transition-all duration-200"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Sign Out
+                  </button>
+                </motion.div>
               )}
-              {/* Online status dot */}
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-zinc-950" />
-            </div>
-
-            {/* User details */}
-            <div className="flex flex-col text-left max-w-[100px] overflow-hidden select-none">
-              <span className="text-[8px] font-black text-teal-400 uppercase tracking-widest leading-none mb-0.5">Explorer</span>
-              <span className="text-xs font-bold text-white truncate leading-none">{authUser.name.split(' ')[0]}</span>
-            </div>
-
-            {/* Direct Logout Button */}
-            <button
-              onClick={handleSignOut}
-              className="p-1.5 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 rounded-full text-zinc-400 hover:text-red-400 cursor-pointer transition-all duration-200"
-              title="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            </AnimatePresence>
           </div>
         ) : (
           /* Google Sign-In Button Container (Unmounted when logged in) */
@@ -660,37 +779,83 @@ export default function ExplorerPage() {
                 </div>
               )}
 
-              {/* SAVED JOURNEYS LIST */}
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3">Saved Explorations</p>
-                {savedPaths.length === 0 ? (
-                  <p className="text-zinc-500 text-xs italic p-4 text-center">No journeys saved yet.</p>
-                ) : (
-                  savedPaths.map((path) => (
-                    <div
-                      key={path.id}
-                      onClick={() => loadSavedPath(path)}
-                      className="p-3.5 rounded-xl border border-white/5 hover:border-teal-500/20 bg-zinc-900/30 hover:bg-zinc-900/60 cursor-pointer flex items-center justify-between group transition-all"
-                    >
-                      <div className="overflow-hidden mr-2">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <h4 className="font-bold text-xs text-white group-hover:text-teal-400 transition-colors truncate">{path.title}</h4>
-                          {path.user ? (
-                            <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[7px] font-black text-indigo-400 uppercase tracking-wider">
-                              <Lock className="w-2 h-2" /> Personal
-                            </span>
-                          ) : (
-                            <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-zinc-800 border border-white/5 rounded-full text-[7px] font-black text-zinc-500 uppercase tracking-wider">
-                              <Globe className="w-2 h-2" /> Public
-                            </span>
-                          )}
+              {/* SAVED EXPLORATIONS & CHATS SECTIONS */}
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-6">
+                {/* Explorations Section */}
+                <div>
+                  <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest mb-3 flex items-center gap-1.5 select-none">
+                    <Compass className="w-3.5 h-3.5" />
+                    Explorations ({savedPaths.length})
+                  </p>
+                  <div className="space-y-2">
+                    {savedPaths.length === 0 ? (
+                      <p className="text-zinc-500 text-[11px] italic p-3 text-center rounded-xl border border-white/5 bg-zinc-900/10 select-none">No journeys saved yet.</p>
+                    ) : (
+                      savedPaths.map((path) => (
+                        <div
+                          key={path.id}
+                          onClick={() => loadSavedPath(path)}
+                          className="p-3 rounded-xl border border-white/5 hover:border-teal-500/20 bg-zinc-900/30 hover:bg-zinc-900/60 cursor-pointer flex items-center justify-between group transition-all"
+                        >
+                          <div className="overflow-hidden mr-2 text-left">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <h4 className="font-bold text-xs text-white group-hover:text-teal-400 transition-colors truncate">{path.title}</h4>
+                              {path.user ? (
+                                <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[7px] font-black text-indigo-400 uppercase tracking-wider">
+                                  <Lock className="w-2 h-2" /> Personal
+                                </span>
+                              ) : (
+                                <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-zinc-800 border border-white/5 rounded-full text-[7px] font-black text-zinc-500 uppercase tracking-wider">
+                                  <Globe className="w-2 h-2" /> Public
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[9px] text-zinc-500 mt-0.5">Created: {new Date(path.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-teal-400 transition-colors flex-shrink-0" />
                         </div>
-                        <p className="text-[9px] text-zinc-500 mt-0.5">Created: {new Date(path.createdAt).toLocaleDateString()}</p>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-teal-400 transition-colors flex-shrink-0" />
-                    </div>
-                  ))
-                )}
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* AI Chats Section */}
+                <div>
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-1.5 select-none">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    AI Chats ({savedChats.length})
+                  </p>
+                  <div className="space-y-2">
+                    {savedChats.length === 0 ? (
+                      <p className="text-zinc-500 text-[11px] italic p-3 text-center rounded-xl border border-white/5 bg-zinc-900/10 select-none">No chats saved yet.</p>
+                    ) : (
+                      savedChats.map((chat) => (
+                        <div
+                          key={chat.id}
+                          onClick={() => loadSavedChat(chat)}
+                          className="p-3 rounded-xl border border-white/5 hover:border-indigo-500/20 bg-zinc-900/30 hover:bg-zinc-900/60 cursor-pointer flex items-center justify-between group transition-all"
+                        >
+                          <div className="overflow-hidden mr-2 text-left">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <h4 className="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors truncate">{chat.title}</h4>
+                              {chat.user ? (
+                                <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[7px] font-black text-indigo-400 uppercase tracking-wider">
+                                  <Lock className="w-2 h-2" /> Personal
+                                </span>
+                              ) : (
+                                <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 bg-zinc-800 border border-white/5 rounded-full text-[7px] font-black text-zinc-500 uppercase tracking-wider">
+                                  <Globe className="w-2 h-2" /> Public
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[9px] text-zinc-500 mt-0.5">Created: {new Date(chat.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </>
@@ -856,12 +1021,28 @@ export default function ExplorerPage() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => setShowChat(false)}
-                className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {chatMessages.length > 1 && (
+                   <button
+                     onClick={handleSaveChat}
+                     disabled={isSavingChat}
+                     className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-teal-500/35 rounded-lg text-zinc-400 hover:text-teal-400 cursor-pointer disabled:opacity-40"
+                     title="Save Chat Session"
+                   >
+                     {isSavingChat ? (
+                       <Loader2 className="w-4 h-4 animate-spin text-teal-400" />
+                     ) : (
+                       <Bookmark className="w-4 h-4" />
+                     )}
+                   </button>
+                )}
+                <button
+                  onClick={() => setShowChat(false)}
+                  className="p-1.5 hover:bg-zinc-900 border border-transparent hover:border-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Messages Stream */}

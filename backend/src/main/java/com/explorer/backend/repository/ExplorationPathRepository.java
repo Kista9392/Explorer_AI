@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface ExplorationPathRepository extends JpaRepository<ExplorationPath, UUID> {
     List<ExplorationPath> findByUserOrderByCreatedAtDesc(User user);
     List<ExplorationPath> findByUserIsNullOrderByCreatedAtDesc();
+    long countByUser(User user);
+    long countByUserIsNull();
 }

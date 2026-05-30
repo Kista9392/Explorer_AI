@@ -16,16 +16,19 @@ public class ExploreService {
     private final ConceptRepository conceptRepository;
     private final ConceptConnectionRepository connectionRepository;
     private final ExplorationPathRepository pathRepository;
+    private final ChatSessionRepository chatRepository;
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ExploreService(ConceptRepository conceptRepository,
                           ConceptConnectionRepository connectionRepository,
                           ExplorationPathRepository pathRepository,
+                          ChatSessionRepository chatRepository,
                           GeminiService geminiService) {
         this.conceptRepository = conceptRepository;
         this.connectionRepository = connectionRepository;
         this.pathRepository = pathRepository;
+        this.chatRepository = chatRepository;
         this.geminiService = geminiService;
     }
 
@@ -205,6 +208,44 @@ public class ExploreService {
             }
         }
         return concept;
+    }
+
+    // Chat Sessions Save / Load
+    public List<ChatSession> getAllChats(User user) {
+        if (user != null) {
+            List<ChatSession> personalChats = chatRepository.findByUserOrderByCreatedAtDesc(user);
+            List<ChatSession> publicChats = chatRepository.findByUserIsNullOrderByCreatedAtDesc();
+            List<ChatSession> combined = new java.util.ArrayList<>(personalChats);
+            combined.addAll(publicChats);
+            return combined;
+        }
+        return chatRepository.findByUserIsNullOrderByCreatedAtDesc();
+    }
+
+    @Transactional
+    public ChatSession saveChat(String title, String chatData, User user) {
+        ChatSession session = new ChatSession(title.trim(), chatData.trim(), user);
+        return chatRepository.save(session);
+    }
+
+    // User Profile Stats Card Helper
+    public Map<String, Long> getUserStats(User user) {
+        long pathCount = 0;
+        long chatCount = 0;
+        if (user != null) {
+            pathCount = pathRepository.countByUser(user);
+            chatCount = chatRepository.countByUser(user);
+        } else {
+            pathCount = pathRepository.countByUserIsNull();
+            chatCount = chatRepository.countByUserIsNull();
+        }
+        long nodeCount = conceptRepository.count();
+
+        return Map.of(
+            "savedPaths", pathCount,
+            "savedChats", chatCount,
+            "discoveredNodes", nodeCount
+        );
     }
 }
 
