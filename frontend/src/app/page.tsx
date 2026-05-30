@@ -1187,14 +1187,14 @@ export default function ExplorerPage() {
               ) : selectedConceptProfile ? (
                 <>
                   {/* Detailed Summary description */}
-                  <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300 animate-fade-in">
+                  <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300 animate-fade-in flex-shrink-0">
                     {/* Decorative glow lines */}
                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-indigo-600" />
                     {selectedConceptProfile.summary}
                   </div>
 
                   {/* EXPLORE TIMELINE / ADDITIONAL NOTES */}
-                  <div className="space-y-4">
+                  <div className="space-y-4 flex-shrink-0">
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
                       Curiosity timeline
@@ -1226,7 +1226,7 @@ export default function ExplorerPage() {
 
                   {/* FUN FACT GLOWING GOLDEN BOX */}
                   {(selectedConceptProfile.funFact || selectedConceptProfile.fun_fact) && (
-                    <div className="mt-6 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 relative overflow-hidden text-xs text-amber-300 leading-relaxed shadow-lg">
+                    <div className="mt-6 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 relative overflow-hidden text-xs text-amber-300 leading-relaxed shadow-lg flex-shrink-0">
                       <div className="absolute top-0 left-0 w-[3px] h-full bg-amber-400" />
                       <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 mb-1 flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
@@ -1237,7 +1237,7 @@ export default function ExplorerPage() {
                   )}
 
                   {/* MULTIMEDIA RECOMMENDATIONS DECK (YOUTUBE VIDEOS) */}
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-6 space-y-3 flex-shrink-0">
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 select-none text-left">
                       <Video className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
                       Watch & Learn Recommendations
@@ -1319,7 +1319,7 @@ export default function ExplorerPage() {
                   </div>
                 </>
               ) : (
-                <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300">
+                <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300 flex-shrink-0">
                   {/* Decorative glow lines */}
                   <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-indigo-600" />
                   {selectedNode.data.summary}
