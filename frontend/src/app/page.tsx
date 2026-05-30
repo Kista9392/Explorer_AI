@@ -762,6 +762,8 @@ export default function ExplorerPage() {
         <form onSubmit={handleSearch} className="relative flex items-center shadow-2xl shadow-black/80 rounded-full border border-white/10 bg-zinc-950/70 backdrop-blur-xl px-4 py-3 group focus-within:border-teal-500/50 transition-all duration-300">
           <Search className="w-5 h-5 text-zinc-400 group-focus-within:text-teal-400 transition-colors mr-3" />
           <input
+            id="search-input"
+            name="searchQuery"
             type="text"
             placeholder="Search an idea (e.g. Black Holes, Stoicism, Simulation Theory)..."
             className="w-full bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-0"
@@ -1031,6 +1033,8 @@ export default function ExplorerPage() {
                     Save Active Path
                   </p>
                   <input
+                    id="path-title-input"
+                    name="pathTitle"
                     type="text"
                     placeholder="Journey name (e.g. Relativity path)..."
                     className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-teal-500 mb-3"
@@ -1552,6 +1556,8 @@ export default function ExplorerPage() {
               className="p-3 bg-zinc-900/60 border-t border-white/10 flex items-center gap-2"
             >
               <input
+                id="chat-input"
+                name="chatInput"
                 type="text"
                 placeholder={selectedNode ? `Ask about ${selectedNode.data.label}...` : "Ask a general question..."}
                 className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-teal-500 focus:ring-0"
