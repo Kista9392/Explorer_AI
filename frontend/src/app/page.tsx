@@ -782,6 +782,7 @@ export default function ExplorerPage() {
       {/* TOP-LEFT AUTH WIDGET: Google Sign-In / Profile Pill with nested Logout */}
       <div className="absolute top-6 left-6 z-20 animate-fade-in">
         {authUser ? (
+          <>
           <div 
             onMouseEnter={() => setShowStatsCard(true)}
             onMouseLeave={() => setShowStatsCard(false)}
@@ -920,6 +921,7 @@ export default function ExplorerPage() {
               </div>
             </motion.div>
           )}
+          </>
         ) : (
           /* Google Sign-In Button Container (Unmounted when logged in) */
           <div
