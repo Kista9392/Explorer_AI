@@ -89,6 +89,8 @@ export default function ExplorerPage() {
   // Dynamic Detailed Concept Profile States
   const [selectedConceptProfile, setSelectedConceptProfile] = useState<any | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [drawerVideos, setDrawerVideos] = useState<any[]>([]);
+  const [isDrawerVideosLoading, setIsDrawerVideosLoading] = useState(false);
 
   // Google OAuth Authentication States
   const [authUser, setAuthUser] = useState<any | null>(null);
@@ -379,12 +381,23 @@ export default function ExplorerPage() {
     setSelectedNode(node);
     setSelectedConceptProfile(null);
     setIsProfileLoading(true);
+    setDrawerVideos([]);
+    setIsDrawerVideosLoading(true);
 
     try {
-      const res = await axios.get(`${API_BASE}/api/v1/explore/concept?name=${encodeURIComponent(node.data.label)}`);
-      setSelectedConceptProfile(res.data);
+      // 1. Fetch detailed concept profile
+      const profilePromise = axios.get(`${API_BASE}/api/v1/explore/concept?name=${encodeURIComponent(node.data.label)}`);
+
+      // 2. Fetch YouTube educational recommendations
+      const videosPromise = axios.get(`${API_BASE}/api/v1/explore/videos`, {
+        params: { query: node.data.label }
+      });
+
+      const [profileRes, videosRes] = await Promise.all([profilePromise, videosPromise]);
+      setSelectedConceptProfile(profileRes.data);
+      setDrawerVideos(videosRes.data || []);
     } catch (err) {
-      console.error('Failed to fetch detailed concept profile', err);
+      console.error('Failed to fetch detailed concept profile or recommendations', err);
       // Fallback locally using whatever exists in node data
       setSelectedConceptProfile({
         name: node.data.label,
@@ -396,6 +409,7 @@ export default function ExplorerPage() {
       });
     } finally {
       setIsProfileLoading(false);
+      setIsDrawerVideosLoading(false);
     }
   }, []);
 
@@ -1030,6 +1044,52 @@ export default function ExplorerPage() {
                       "{selectedConceptProfile.funFact}"
                     </div>
                   )}
+
+                  {/* MULTIMEDIA RECOMMENDATIONS DECK (YOUTUBE VIDEOS) */}
+                  <div className="mt-6 space-y-3">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 select-none text-left">
+                      <Video className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
+                      Watch & Learn Recommendations
+                    </p>
+                    
+                    {isDrawerVideosLoading ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
+                      </div>
+                    ) : drawerVideos.length === 0 ? (
+                      <p className="text-[10px] text-zinc-500 italic text-center p-3 rounded-xl border border-white/5 bg-zinc-900/10">No multimedia assets resolved.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {drawerVideos.slice(0, 4).map((vid: any) => (
+                          <div
+                            key={vid.videoId}
+                            onClick={() => setActiveVideoId(vid.videoId)}
+                            className="group/vid relative cursor-pointer overflow-hidden rounded-xl border border-white/5 hover:border-teal-500/40 bg-zinc-900/20 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col h-full shadow-lg"
+                            title={vid.title}
+                          >
+                            <div className="w-full aspect-video relative overflow-hidden bg-zinc-950">
+                              {vid.thumbnailUrl && (
+                                <img
+                                  src={vid.thumbnailUrl}
+                                  alt={vid.title}
+                                  className="w-full h-full object-cover group-hover/vid:scale-105 transition-transform duration-200"
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-black/55 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
+                                <Play className="w-6 h-6 text-teal-400 fill-teal-400 animate-pulse" />
+                              </div>
+                            </div>
+                            <div className="p-2 flex-1 flex flex-col justify-between">
+                              <p className="text-[10px] text-white font-bold leading-tight line-clamp-2 text-left group-hover/vid:text-teal-400 transition-colors">
+                                {vid.title}
+                              </p>
+                              <p className="text-[8px] text-zinc-500 truncate text-left mt-1">{vid.channelTitle}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 <div className="p-5 rounded-2xl border border-white/5 bg-zinc-900/20 backdrop-blur-md mb-6 shadow-xl relative overflow-hidden leading-relaxed text-sm text-zinc-300">

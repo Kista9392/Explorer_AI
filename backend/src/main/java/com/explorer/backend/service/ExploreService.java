@@ -179,8 +179,9 @@ public class ExploreService {
         Concept concept = conceptRepository.findByNameIgnoreCase(normalizedQuery)
                 .orElseGet(() -> conceptRepository.save(new Concept(normalizedQuery, "A fascinating concept within the visual knowledge map.")));
 
-        // If the rich detailed fields are not set, fetch them dynamically using Gemini and save
-        if (concept.getHistoricalContext() == null || concept.getHistoricalContext().isEmpty()) {
+        // If any of the rich detailed fields or fun fact are not set, fetch them dynamically using Gemini and save
+        if (concept.getHistoricalContext() == null || concept.getHistoricalContext().isEmpty() ||
+            concept.getFunFact() == null || concept.getFunFact().isEmpty()) {
             try {
                 String rawJson = geminiService.generateConceptProfile(normalizedQuery);
                 JsonNode root = objectMapper.readTree(rawJson);
