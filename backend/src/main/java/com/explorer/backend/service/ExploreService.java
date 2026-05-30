@@ -3,10 +3,13 @@ package com.explorer.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.explorer.backend.dto.*;
+import com.explorer.backend.repository.UserRepository;
 import com.explorer.backend.entity.*;
 import com.explorer.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import java.time.LocalDateTime;
 
 import java.util.*;
 
@@ -17,6 +20,9 @@ public class ExploreService {
     private final ConceptConnectionRepository connectionRepository;
     private final ExplorationPathRepository pathRepository;
     private final ChatSessionRepository chatRepository;
+    private final UserRepository userRepository;
+    @Value("${chat.retention.days:30}")
+    private int chatRetentionDays;
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -24,12 +30,14 @@ public class ExploreService {
                           ConceptConnectionRepository connectionRepository,
                           ExplorationPathRepository pathRepository,
                           ChatSessionRepository chatRepository,
-                          GeminiService geminiService) {
+                          GeminiService geminiService,
+                          UserRepository userRepository) {
         this.conceptRepository = conceptRepository;
         this.connectionRepository = connectionRepository;
         this.pathRepository = pathRepository;
         this.chatRepository = chatRepository;
         this.geminiService = geminiService;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -229,6 +237,24 @@ public class ExploreService {
         return chatRepository.findByUserIsNullOrderByCreatedAtDesc();
     }
 
+    /** Retrieve chats older than retention period for a given user */
+    public List<ChatSession> getUserOldChats(User user) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(chatRetentionDays);
+        return chatRepository.findByUserAndCreatedAtBefore(user, cutoff);
+    }
+
+    /** Record that the old‑chat prompt was shown (or dismissed) */
+    public void recordPromptShown(User user) {
+        user.setLastOldChatPromptAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    /** Dismiss the prompt without deleting */
+    public void dismissPrompt(User user) {
+        user.setLastOldChatPromptAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
     @Transactional
     public ChatSession saveChat(String idStr, String title, String chatData, User user) {
         ChatSession session;
@@ -248,6 +274,20 @@ public class ExploreService {
         }
         session = new ChatSession(title.trim(), chatData.trim(), user);
         return chatRepository.save(session);
+    }
+
+    // Delete chat by ID (used for profile old chat deletion)
+    @Transactional
+    public void deleteChat(String idStr, String title, String chatData, User user) {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            return; // nothing to delete
+        }
+        try {
+            UUID uuid = UUID.fromString(idStr.trim());
+            chatRepository.deleteById(uuid);
+        } catch (IllegalArgumentException e) {
+            // invalid UUID, ignore
+        }
     }
 
     // User Profile Stats Card Helper

@@ -10,6 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface ChatSessionRepository extends JpaRepository<ChatSession, UUID> {
+    List<ChatSession> findByUserAndCreatedAtBefore(User user, java.time.LocalDateTime cutoff);
     List<ChatSession> findByUserOrderByCreatedAtDesc(User user);
     List<ChatSession> findByUserIsNullOrderByCreatedAtDesc();
     long countByUser(User user);

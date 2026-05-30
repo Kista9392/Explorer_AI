@@ -106,6 +106,11 @@ export default function ExplorerPage() {
   const [showStatsCard, setShowStatsCard] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
+  // Old chat management (profile) states
+  const [oldChats, setOldChats] = useState<any[]>([]);
+  const [showOldChatModal, setShowOldChatModal] = useState(false);
+  const [selectedOldChatIds, setSelectedOldChatIds] = useState<Set<string>>(new Set());
+
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const chatTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -260,6 +265,58 @@ export default function ExplorerPage() {
       console.error('Failed to load profile stats', err);
     }
   };
+
+  // Fetch old chats for 30‑day prompt (also records that prompt was shown)
+  const fetchOldChats = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/profile/old-chats`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+      setOldChats(res.data || []);
+      if ((res.data || []).length > 0) {
+        setShowOldChatModal(true);
+      }
+    } catch (err) {
+      console.error('Failed to load old chats', err);
+    }
+  };
+
+  // Dismiss the 30‑day old‑chat prompt
+  const dismissOldChatPrompt = async () => {
+    try {
+      await axios.post(`${API_BASE}/api/profile/old-chats/dismiss`, null, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+    } catch (err) {
+      console.error('Failed to dismiss old chat prompt', err);
+    } finally {
+      setShowOldChatModal(false);
+    }
+  };
+
+  // Delete selected old chats
+  const deleteSelectedOldChats = async () => {
+    const ids = Array.from(selectedOldChatIds);
+    try {
+      await Promise.all(
+        ids.map((id) => axios.delete(`${API_BASE}/api/profile/chats/${id}`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+        }))
+      );
+      // Refresh list after deletion
+      await fetchOldChats();
+      setSelectedOldChatIds(new Set());
+    } catch (err) {
+      console.error('Failed to delete old chats', err);
+    }
+  };
+
+  // Trigger fetch of old chats when profile stats card opens
+  useEffect(() => {
+    if (showStatsCard) {
+      fetchOldChats();
+    }
+  }, [showStatsCard]);
 
   // Perform Initial Search
   const handleSearch = async (e?: React.FormEvent) => {
@@ -816,6 +873,53 @@ export default function ExplorerPage() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Old Chats Modal */}
+          {showOldChatModal && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50"
+            >
+              <div className="w-full max-w-md p-6 bg-zinc-900/90 border border-white/10 rounded-xl shadow-2xl">
+                <h3 className="text-lg font-bold text-teal-400 mb-4">Manage Old Chats</h3>
+                <div className="max-h-64 overflow-y-auto mb-4">
+                  {oldChats.map((chat) => (
+                    <label key={chat.id} className="flex items-center justify-between py-1">
+                      <span className="text-sm text-white break-all">{chat.title || 'Untitled'}</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedOldChatIds.has(chat.id)}
+                        onChange={() => {
+                          const newSet = new Set(selectedOldChatIds);
+                          if (newSet.has(chat.id)) newSet.delete(chat.id);
+                          else newSet.add(chat.id);
+                          setSelectedOldChatIds(newSet);
+                        }}
+                        className="form-checkbox h-4 w-4 text-teal-500 rounded"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={dismissOldChatPrompt}
+                    className="px-3 py-1 text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded"
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    onClick={deleteSelectedOldChats}
+                    disabled={selectedOldChatIds.size === 0}
+                    className="px-3 py-1 text-sm text-white bg-red-600 hover:bg-red-500 rounded disabled:opacity-50"
+                  >
+                    Delete Selected
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         ) : (
           /* Google Sign-In Button Container (Unmounted when logged in) */
           <div

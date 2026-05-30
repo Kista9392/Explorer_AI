@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Optional;
 
 @RestController
@@ -190,5 +191,37 @@ public class ExploreController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         User user = resolveUser(authHeader);
         return ResponseEntity.ok(exploreService.getUserStats(user));
+    }
+
+    // --- Old Chat Management (Profile Section) ---
+    @GetMapping("/profile/old-chats")
+    public ResponseEntity<List<ChatSession>> getOldChats(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User user = resolveUser(authHeader);
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        // Record that we have shown the prompt now
+        exploreService.recordPromptShown(user);
+        List<ChatSession> old = exploreService.getUserOldChats(user);
+        return ResponseEntity.ok(old);
+    }
+
+    @PostMapping("/profile/old-chats/dismiss")
+    public ResponseEntity<Void> dismissOldChatPrompt(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User user = resolveUser(authHeader);
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        exploreService.dismissPrompt(user);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/profile/chats/{id}")
+    public ResponseEntity<Void> deleteChatFromProfile(@PathVariable UUID id,
+                                                       @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User user = resolveUser(authHeader);
+        // Allow deletion of user's own chats or public chats
+        exploreService.deleteChat(id.toString(), null, null, user);
+        return ResponseEntity.noContent().build();
     }
 }

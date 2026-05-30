@@ -26,6 +26,9 @@ public class User {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "last_old_chat_prompt_at")
+    private LocalDateTime lastOldChatPromptAt;
+
     public User() {}
 
     public User(String email, String name, String pictureUrl) {
@@ -47,4 +50,7 @@ public class User {
     public void setPictureUrl(String pictureUrl) { this.pictureUrl = pictureUrl; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public LocalDateTime getLastOldChatPromptAt() { return lastOldChatPromptAt; }
+    public void setLastOldChatPromptAt(LocalDateTime lastOldChatPromptAt) { this.lastOldChatPromptAt = lastOldChatPromptAt; }
 }
