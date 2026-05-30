@@ -17,11 +17,17 @@ public class YouTubeService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public List<Map<String, String>> searchEducationalVideos(String conceptName) {
+        // --- Diagnostic: trace key resolution ---
+        System.out.println("[YouTubeService] Starting video search for: " + conceptName);
+        System.out.println("[YouTubeService] @Value apiKey resolved to: " + (apiKey == null ? "null" : apiKey.substring(0, Math.min(8, apiKey.length())) + "..."));
+
         if ("not-set".equals(apiKey) || apiKey.isEmpty()) {
             // Check environment variables directly
             String envKey = System.getenv("YOUTUBE_API_KEY");
+            System.out.println("[YouTubeService] YOUTUBE_API_KEY env: " + (envKey == null ? "null" : envKey.substring(0, Math.min(8, envKey.length())) + "..."));
             if (envKey == null || envKey.isEmpty()) {
                 envKey = System.getenv("GEMINI_API_KEY");
+                System.out.println("[YouTubeService] Falling back to GEMINI_API_KEY env: " + (envKey == null ? "null" : envKey.substring(0, Math.min(8, envKey.length())) + "..."));
             }
             if (envKey != null && !envKey.isEmpty()) {
                 apiKey = envKey;
@@ -29,9 +35,11 @@ public class YouTubeService {
         }
 
         if ("not-set".equals(apiKey) || apiKey.isEmpty() || apiKey.contains("not-set")) {
-            System.out.println("YouTube API Key is not set! Using high-quality educational fallback videos.");
+            System.out.println("[YouTubeService] No valid API key found. Using fallback videos.");
             return getFallbackVideos(conceptName);
         }
+
+        System.out.println("[YouTubeService] Using API key: " + apiKey.substring(0, Math.min(8, apiKey.length())) + "... (length=" + apiKey.length() + ")");
 
         try {
             // Search query targeted at high quality educational content
@@ -44,10 +52,15 @@ public class YouTubeService {
                     .queryParam("key", apiKey)
                     .toUriString();
 
+            System.out.println("[YouTubeService] Calling YouTube API...");
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            System.out.println("[YouTubeService] YouTube API response status: " + response.getStatusCode());
+
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 List<Map<String, String>> results = new ArrayList<>();
                 List items = (List) response.getBody().get("items");
+                System.out.println("[YouTubeService] Items returned: " + (items == null ? 0 : items.size()));
+
                 if (items != null && !items.isEmpty()) {
                     for (Object itemObj : items) {
                         Map item = (Map) itemObj;
@@ -84,12 +97,19 @@ public class YouTubeService {
                             }
                         }
                     }
+                    System.out.println("[YouTubeService] SUCCESS: Returning " + results.size() + " real YouTube videos.");
                     return results;
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to fetch educational videos from YouTube API: " + e.getMessage() + ". Falling back to high-quality curated videos.");
+            System.err.println("[YouTubeService] FAILED: YouTube API error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("403")) {
+                System.err.println("[YouTubeService] HINT: 403 usually means the YouTube Data API v3 is NOT enabled for your Google Cloud project, or the API key has restrictions.");
+            } else if (e.getMessage() != null && e.getMessage().contains("400")) {
+                System.err.println("[YouTubeService] HINT: 400 usually means the API key is invalid or malformed.");
+            }
         }
+        System.out.println("[YouTubeService] Returning fallback videos.");
         return getFallbackVideos(conceptName);
     }
 
