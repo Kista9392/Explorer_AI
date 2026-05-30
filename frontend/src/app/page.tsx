@@ -42,6 +42,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
 import { CustomNode } from '@/components/CustomNode';
+import { CustomEdge } from '@/components/CustomEdge';
 import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7860';
@@ -93,6 +94,11 @@ export default function ExplorerPage() {
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
     custom: CustomNode
+  }), []);
+
+  // Register Custom Edge Types for React Flow
+  const edgeTypes = useMemo(() => ({
+    custom: CustomEdge
   }), []);
 
   // Build auth headers helper
@@ -227,7 +233,7 @@ export default function ExplorerPage() {
         source: e.source,
         target: e.target,
         label: e.label,
-        type: 'default',
+        type: 'custom',
         animated: true
       }));
 
@@ -293,7 +299,7 @@ export default function ExplorerPage() {
         source: e.source,
         target: e.target,
         label: e.label,
-        type: 'default',
+        type: 'custom',
         animated: true
       }));
 
@@ -374,8 +380,14 @@ export default function ExplorerPage() {
         }
       }));
 
+      // Re-map edges to use custom type dynamically
+      const mappedEdges = (parsed.edges || []).map((e: any) => ({
+        ...e,
+        type: 'custom'
+      }));
+
       setNodes(mappedNodes);
-      setEdges(parsed.edges || []);
+      setEdges(mappedEdges);
       setSelectedNode(null);
       setShowHistoryDrawer(false);
     } catch (err) {
@@ -577,6 +589,7 @@ export default function ExplorerPage() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes as any}
+            edgeTypes={edgeTypes as any}
             onNodeClick={onNodeClick}
             fitView
             colorMode="dark"
