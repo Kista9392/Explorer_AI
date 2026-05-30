@@ -105,6 +105,28 @@ export default function ExplorerPage() {
   const [showStatsCard, setShowStatsCard] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
+  const chatWindowRef = useRef<HTMLDivElement>(null);
+  const chatTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Click outside chat listener to dismiss AI assistant
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        showChat && 
+        chatWindowRef.current && 
+        !chatWindowRef.current.contains(event.target as Node) &&
+        chatTriggerRef.current &&
+        !chatTriggerRef.current.contains(event.target as Node)
+      ) {
+        setShowChat(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showChat]);
+
   // Register Custom Node Types for React Flow
   const nodeTypes = useMemo(() => ({
     custom: CustomNode
@@ -1123,6 +1145,7 @@ export default function ExplorerPage() {
 
       {/* FLOATING AI ASSISTANT TRIGGER BUTTON */}
       <button
+        ref={chatTriggerRef}
         onClick={() => setShowChat(!showChat)}
         className="absolute bottom-28 right-6 z-20 p-4 bg-gradient-to-r from-teal-500 to-indigo-600 border border-white/10 hover:border-teal-400 rounded-full shadow-2xl hover:scale-105 active:scale-95 cursor-pointer group transition-all duration-200"
         title="AI Assistant Chat"
@@ -1135,6 +1158,7 @@ export default function ExplorerPage() {
       <AnimatePresence>
         {showChat && (
           <motion.div
+            ref={chatWindowRef}
             initial={{ scale: 0.8, opacity: 0, y: 100 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 100 }}
