@@ -499,88 +499,47 @@ export default function ExplorerPage() {
         </form>
       </div>
 
-      {/* LEFT HISTORY SIDEBAR TOGGLE BUTTON */}
-      <button
-        onClick={() => setShowHistoryDrawer(true)}
-        className="absolute top-6 left-6 z-20 p-3 bg-zinc-900/60 border border-white/10 hover:border-teal-500/40 rounded-2xl shadow-xl hover:bg-zinc-800/80 cursor-pointer transition-all duration-200"
-        title="Path History"
-      >
-        <History className="w-5 h-5 text-zinc-400 hover:text-teal-400" />
-      </button>
-
-      {/* TOP-RIGHT AUTH WIDGET: Google Sign-In / Avatar Profile */}
-      <div className="absolute top-6 right-6 z-20">
+      {/* TOP-LEFT AUTH WIDGET: Google Sign-In / Profile Pill with nested Logout */}
+      <div className="absolute top-6 left-6 z-20 animate-fade-in">
         {authUser ? (
-          <div className="relative">
-            <button
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="relative w-11 h-11 rounded-full cursor-pointer group transition-all duration-300"
-              title={authUser.name}
-            >
-              {/* Glowing Indigo Aura Ring */}
+          <div className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-full bg-zinc-950/85 backdrop-blur-2xl border border-white/10 shadow-lg shadow-black/40 relative">
+            {/* Glowing Indigo/Teal Aura avatar ring */}
+            <div className="relative w-8 h-8 rounded-full group">
               <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-60 blur-sm group-hover:opacity-90 animate-pulse transition-opacity" />
               <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500 opacity-70" />
               {authUser.pictureUrl ? (
                 <img
                   src={authUser.pictureUrl}
                   alt={authUser.name}
-                  className="relative w-full h-full rounded-full object-cover border-2 border-zinc-950"
+                  className="relative w-full h-full rounded-full object-cover border border-zinc-950"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <span className="relative w-full h-full rounded-full bg-zinc-900 border-2 border-zinc-950 flex items-center justify-center text-sm font-black text-teal-400">
+                <span className="relative w-full h-full rounded-full bg-zinc-900 border border-zinc-950 flex items-center justify-center text-xs font-black text-teal-400">
                   {authUser.name?.[0]?.toUpperCase() || '?'}
                 </span>
               )}
-              {/* Online indicator */}
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950" />
-            </button>
+              {/* Online status dot */}
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-zinc-950" />
+            </div>
 
-            {/* Profile Dropdown Menu */}
-            <AnimatePresence>
-              {showProfileMenu && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                  className="absolute right-0 mt-3 w-64 bg-zinc-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-4 flex flex-col"
-                >
-                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
-                    {authUser.pictureUrl ? (
-                      <img
-                        src={authUser.pictureUrl}
-                        alt={authUser.name}
-                        className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/50"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span className="w-10 h-10 rounded-full bg-zinc-900 ring-2 ring-indigo-500/50 flex items-center justify-center text-sm font-black text-teal-400">
-                        {authUser.name?.[0]?.toUpperCase() || '?'}
-                      </span>
-                    )}
-                    <div className="overflow-hidden">
-                      <h4 className="text-sm font-bold text-white truncate">{authUser.name}</h4>
-                      <p className="text-[10px] text-zinc-400 truncate">{authUser.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] text-zinc-400 mb-3">
-                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Verified Google Account</span>
-                  </div>
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center gap-2 w-full px-3 py-2.5 bg-zinc-900/60 hover:bg-red-500/10 border border-white/5 hover:border-red-500/30 rounded-xl text-xs text-zinc-400 hover:text-red-400 cursor-pointer transition-all"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Sign Out
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* User details */}
+            <div className="flex flex-col text-left max-w-[100px] overflow-hidden select-none">
+              <span className="text-[8px] font-black text-teal-400 uppercase tracking-widest leading-none mb-0.5">Explorer</span>
+              <span className="text-xs font-bold text-white truncate leading-none">{authUser.name.split(' ')[0]}</span>
+            </div>
+
+            {/* Direct Logout Button */}
+            <button
+              onClick={handleSignOut}
+              className="p-1.5 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 rounded-full text-zinc-400 hover:text-red-400 cursor-pointer transition-all duration-200"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         ) : (
-          /* Google Sign-In Button Container */
+          /* Google Sign-In Button Container (Unmounted when logged in) */
           <div
             ref={googleBtnRef}
             className="rounded-full overflow-hidden shadow-xl shadow-black/40 border border-white/10 hover:border-teal-500/30 transition-all"
@@ -588,6 +547,15 @@ export default function ExplorerPage() {
           />
         )}
       </div>
+
+      {/* TOP-RIGHT HISTORY SIDEBAR TOGGLE BUTTON */}
+      <button
+        onClick={() => setShowHistoryDrawer(true)}
+        className="absolute top-6 right-6 z-20 p-3 bg-zinc-900/60 border border-white/10 hover:border-teal-500/40 rounded-2xl shadow-xl hover:bg-zinc-800/80 cursor-pointer transition-all duration-200"
+        title="Path History"
+      >
+        <History className="w-5 h-5 text-zinc-400 hover:text-teal-400" />
+      </button>
 
       {/* MAIN REACT FLOW GRAPH CANVAS */}
       <div className="w-full h-full relative z-10">
