@@ -73,16 +73,17 @@ public class YouTubeService {
 
     private List<Map<String, String>> executeSearch(String query) {
         try {
-            String url = UriComponentsBuilder.fromHttpUrl("https://www.googleapis.com/youtube/v3/search")
+            java.net.URI uri = UriComponentsBuilder.fromHttpUrl("https://www.googleapis.com/youtube/v3/search")
                     .queryParam("part", "snippet")
                     .queryParam("maxResults", 5)
                     .queryParam("q", query)
                     .queryParam("type", "video")
                     .queryParam("key", apiKey)
-                    .toUriString();
+                    .build()
+                    .toUri();
 
             System.out.println("[YouTubeService] Calling YouTube API for query: " + query);
-            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            ResponseEntity<Map> response = restTemplate.getForEntity(uri, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 List items = (List) response.getBody().get("items");
